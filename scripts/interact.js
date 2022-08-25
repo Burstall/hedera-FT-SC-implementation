@@ -2,16 +2,15 @@ const {
 	Client,
 	AccountId,
 	PrivateKey,
-	ContractCreateFlow,
 	ContractFunctionParameters,
 	ContractExecuteTransaction,
 	TokenAssociateTransaction,
 	AccountInfoQuery,
+	TokenId,
+	ContractId,
 	ContractInfoQuery,
 	ReceiptStatusError,
-	TokenId,
 } = require('@hashgraph/sdk');
-const fs = require('fs');
 // const { hethers } = require('@hashgraph/hethers');
 require('dotenv').config();
 
@@ -19,77 +18,25 @@ require('dotenv').config();
 const operatorKey = PrivateKey.fromString(process.env.PRIVATE_KEY);
 const operatorId = AccountId.fromString(process.env.ACCOUNT_ID);
 
-const tokenName = process.env.TOKEN_NAME;
-const tokenSymbol = process.env.TOKEN_SYMBOL;
+const tokenId = TokenId.fromString(process.env.TOKEN_ID);
+const contractId = ContractId.fromString(process.env.CONTRACT_ID);
 const tokenDecimal = Number(process.env.TOKEN_DECIMALS);
-const tokenInitalSupply = Number(process.env.TOKEN_INITALSUPPLY);
 
 const client = Client.forTestnet().setOperator(operatorId, operatorKey);
-/*
-// Account creation function
-async function accountCreator(pvKey, iBal) {
 
-	const response = await new AccountCreateTransaction()
-		.setInitialBalance(new Hbar(iBal))
-		.setKey(pvKey.publicKey)
-		.execute(client);
-
-	const receipt = await response.getReceipt(client);
-
-	return receipt.accountId;
-}
-*/
 const main = async () => {
+	const acctBal = await getAccountBalance(operatorId);
+	const ctrctBal = await getContractBalance(contractId);
 
-	// const treasuryKey = PrivateKey.generateED25519();
-	// const treasuryId = await accountCreator(treasuryKey, 10);
+	console.log('Using token: ',
+		tokenId.toString(),
+		'balance:',
+		acctBal);
+	console.log('Using contract: ',
+		contractId.toString(),
+		'balance:',
+		ctrctBal);
 
-	const json = JSON.parse(fs.readFileSync('./artifacts/contracts/FungibleTokenCreator.sol/FungibleTokenCreator.json'));
-
-	const bytecode = json.bytecode;
-
-	const createContract = new ContractCreateFlow()
-		.setGas(150000)
-		.setBytecode(bytecode);
-	const createContractTx = await createContract.execute(client);
-	const createContractRx = await createContractTx.getReceipt(client);
-	const contractId = createContractRx.contractId;
-	const contractSolidityAddress = contractId.toSolidityAddress();
-
-	console.log(`Contract created with ID: ${contractId} / ${contractSolidityAddress}`);
-
-	// Create FT using precompile function
-	const createToken = new ContractExecuteTransaction()
-		.setContractId(contractId)
-		.setGas(300000)
-		.setPayableAmount(20)
-		.setFunction('createFungible',
-			/*
-			*	FT NAME
-			*	FT SYMBOL
-			*	FT Initial Supply
-			*	FT Decimals
-			*	FT auto renew periood
-			*/
-			new ContractFunctionParameters()
-				.addString(tokenName)
-				.addString(tokenSymbol)
-				.addUint256(tokenInitalSupply)
-				.addUint256(tokenDecimal)
-				.addUint32(7000000));
-
-	const createTokenTx = await createToken.execute(client);
-
-	const createTokenRx = await createTokenTx.getRecord(client);
-	const tokenIdSolidityAddr = createTokenRx.contractFunctionResult.getAddress(0);
-	const tokenId = TokenId.fromSolidityAddress(tokenIdSolidityAddr);
-
-	console.log(`Token created with ID: ${tokenId} / ${tokenIdSolidityAddr}\n`);
-
-	console.log('Using token: ', tokenId.toString());
-	console.log('Using contract: ', contractId.toString());
-
-	const acctBal = await getAccountBalance(operatorId, tokenId);
 	if (acctBal < 0) {
 		// associate
 		// now associate the token to the operator account
@@ -106,9 +53,8 @@ const main = async () => {
 
 		console.log('The associate transaction status: ' + associateTokenStatus.toString());
 	}
-	else {
-		console.log('Token already associated - ', acctBal);
-	}
+
+	const tokenIdSolidityAddr = tokenId.toSolidityAddress();
 
 	// Execute token transfer from TokenSender to Operator
 	const tokenTransfer = new ContractExecuteTransaction()
@@ -139,7 +85,7 @@ const main = async () => {
 	}
 };
 
-async function getAccountBalance(acctId, tokenId) {
+async function getAccountBalance(acctId) {
 
 	const query = new AccountInfoQuery()
 		.setAccountId(acctId);
@@ -158,12 +104,13 @@ async function getAccountBalance(acctId, tokenId) {
 	return balance;
 }
 
-async function getContractBalance(ctrctId, tokenId) {
+async function getContractBalance(ctrctId) {
 
 	const query = new ContractInfoQuery()
 		.setContractId(ctrctId);
 
 	const info = await query.execute(client);
+
 	let balance;
 	const tokenMap = info.tokenRelationships;
 	if (tokenMap) {
