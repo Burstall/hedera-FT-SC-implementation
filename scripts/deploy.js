@@ -25,24 +25,8 @@ const tokenDecimal = Number(process.env.TOKEN_DECIMALS);
 const tokenInitalSupply = Number(process.env.TOKEN_INITALSUPPLY);
 
 const client = Client.forTestnet().setOperator(operatorId, operatorKey);
-/*
-// Account creation function
-async function accountCreator(pvKey, iBal) {
 
-	const response = await new AccountCreateTransaction()
-		.setInitialBalance(new Hbar(iBal))
-		.setKey(pvKey.publicKey)
-		.execute(client);
-
-	const receipt = await response.getReceipt(client);
-
-	return receipt.accountId;
-}
-*/
 const main = async () => {
-
-	// const treasuryKey = PrivateKey.generateED25519();
-	// const treasuryId = await accountCreator(treasuryKey, 10);
 
 	const json = JSON.parse(fs.readFileSync('./artifacts/contracts/FungibleTokenCreator.sol/FungibleTokenCreator.json'));
 
@@ -148,10 +132,15 @@ async function getAccountBalance(acctId, tokenId) {
 
 	let balance;
 	const tokenMap = info.tokenRelationships;
-	if (tokenMap) {
-		balance = tokenMap.get(tokenId.toString()).balance * (10 ** -tokenDecimal);
+	try {
+		if (tokenMap) {
+			balance = tokenMap.get(tokenId.toString()).balance * (10 ** -tokenDecimal);
+		}
+		else {
+			balance = -1;
+		}
 	}
-	else {
+	catch {
 		balance = -1;
 	}
 

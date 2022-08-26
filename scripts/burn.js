@@ -4,14 +4,12 @@ const {
 	PrivateKey,
 	ContractFunctionParameters,
 	ContractExecuteTransaction,
-	TokenAssociateTransaction,
 	AccountInfoQuery,
 	TokenId,
 	ContractId,
 	ContractInfoQuery,
 	ReceiptStatusError,
 } = require('@hashgraph/sdk');
-// const { hethers } = require('@hashgraph/hethers');
 require('dotenv').config();
 
 // Get operator from .env file
@@ -37,45 +35,24 @@ const main = async () => {
 		'balance:',
 		ctrctBal);
 
-	if (acctBal < 0) {
-		// associate
-		// now associate the token to the operator account
-		const associateToken = await new TokenAssociateTransaction()
-			.setAccountId(operatorId)
-			.setTokenIds([tokenId])
-			.freezeWith(client)
-			.sign(operatorKey);
-
-		const associateTokenTx = await associateToken.execute(client);
-		const associateTokenRx = await associateTokenTx.getReceipt(client);
-
-		const associateTokenStatus = associateTokenRx.status;
-
-		console.log('The associate transaction status: ' + associateTokenStatus.toString());
-	}
-
 	const tokenIdSolidityAddr = tokenId.toSolidityAddress();
 
-	console.log('Transferring:', tokenId.toString(), tokenIdSolidityAddr);
-	console.log('To:', operatorId.toString(), operatorId.toSolidityAddress());
-
 	// Execute token transfer from TokenSender to Operator
-	const tokenTransfer = new ContractExecuteTransaction()
+	const tokenBurn = new ContractExecuteTransaction()
 		.setContractId(contractId)
 		.setGas(4000000)
-		.setFunction('transfer',
+		.setFunction('burnSupply',
 			new ContractFunctionParameters()
 				.addAddress(tokenIdSolidityAddr)
-				.addAddress(operatorId.toSolidityAddress())
 				.addUint256(1 * (10 ** tokenDecimal)),
 		);
 
 	try {
-		const tokenTransferTx = await tokenTransfer.execute(client);
+		const tokenTransferTx = await tokenBurn.execute(client);
 		const tokenTransferRx = await tokenTransferTx.getReceipt(client);
 		const tokenTransferStatus = tokenTransferRx.status;
 
-		console.log('Token transfer transaction status: ' + tokenTransferStatus.toString());
+		console.log('Burn transaction status: ' + tokenTransferStatus.toString());
 
 		console.log(operatorId.toString() + ' account balance for token ' + tokenId + ' is: ' + await getAccountBalance(operatorId, tokenId));
 
@@ -97,15 +74,10 @@ async function getAccountBalance(acctId) {
 
 	let balance;
 	const tokenMap = info.tokenRelationships;
-	try {
-		if (tokenMap) {
-			balance = tokenMap.get(tokenId.toString()).balance * (10 ** -tokenDecimal);
-		}
-		else {
-			balance = -1;
-		}
+	if (tokenMap) {
+		balance = tokenMap.get(tokenId.toString()).balance * (10 ** -tokenDecimal);
 	}
-	catch {
+	else {
 		balance = -1;
 	}
 
@@ -120,7 +92,6 @@ async function getContractBalance(ctrctId) {
 	const info = await query.execute(client);
 
 	let balance;
-
 	const tokenMap = info.tokenRelationships;
 	if (tokenMap) {
 		balance = tokenMap.get(tokenId.toString()).balance * (10 ** -tokenDecimal);

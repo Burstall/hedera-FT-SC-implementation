@@ -64,6 +64,10 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         }
 	}
 
+	function burn(address token, uint64 amount) external {
+			ERC20Burnable(token).burnFrom(msg.sender, amount);
+	}
+
 	function sendToken(
 		address token, 
 		address[] memory accountIds, 
