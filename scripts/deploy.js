@@ -34,8 +34,8 @@ async function contractDeployFcn(bytecode, gasLim) {
 	const contractAddress = contractId.toSolidityAddress();
 	return [contractId, contractAddress];
 }
-
 const main = async () => {
+
 	const json = JSON.parse(fs.readFileSync('./artifacts/contracts/FungibleTokenCreator.sol/FungibleTokenCreator.json'));
 
 	const contractBytecode = json.bytecode;
@@ -137,10 +137,15 @@ async function getAccountBalance(acctId, tokenId) {
 
 	let balance;
 	const tokenMap = info.tokenRelationships;
-	if (tokenMap) {
-		balance = tokenMap.get(tokenId.toString()).balance * (10 ** -tokenDecimal);
+	try {
+		if (tokenMap) {
+			balance = tokenMap.get(tokenId.toString()).balance * (10 ** -tokenDecimal);
+		}
+		else {
+			balance = -1;
+		}
 	}
-	else {
+	catch {
 		balance = -1;
 	}
 
