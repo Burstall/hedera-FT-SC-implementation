@@ -10,7 +10,6 @@ import './ExpiryHelper.sol';
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 contract FungibleTokenCreator is ExpiryHelper, Ownable {
 
@@ -64,10 +63,6 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         }
 	}
 
-	function burn(address token, uint64 amount) external {
-			ERC20Burnable(token).burnFrom(msg.sender, amount);
-	}
-
 	function sendToken(
 		address token, 
 		address[] memory accountIds, 
@@ -90,6 +85,13 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
     function transfer(address token, address recipient, uint256 amount) external onlyOwner {
         IERC20(token).transfer(recipient, amount);
     }
+
+	function callHbar(address payable _receiverAddress, uint _amount) external onlyOwner {
+        (bool sent, ) = _receiverAddress.call{value:_amount}("");
+        require(sent, "Failed to send Hbar");
+    }
+
+	// allows the contract top recieve HBAR
 
     receive() external payable {}
 

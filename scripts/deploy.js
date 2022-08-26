@@ -5,10 +5,8 @@ const {
 	ContractCreateFlow,
 	ContractFunctionParameters,
 	ContractExecuteTransaction,
-	TokenAssociateTransaction,
 	AccountInfoQuery,
 	ContractInfoQuery,
-	ReceiptStatusError,
 	TokenId,
 } = require('@hashgraph/sdk');
 const fs = require('fs');
@@ -34,6 +32,7 @@ async function contractDeployFcn(bytecode, gasLim) {
 	const contractAddress = contractId.toSolidityAddress();
 	return [contractId, contractAddress];
 }
+
 const main = async () => {
 
 	const json = JSON.parse(fs.readFileSync('./artifacts/contracts/FungibleTokenCreator.sol/FungibleTokenCreator.json'));
@@ -77,55 +76,23 @@ const main = async () => {
 
 	console.log('Using token: ', tokenId.toString());
 	console.log('Using contract: ', contractId.toString());
+	console.log('Using operator: ', operatorId.toString());
 
-	const acctBal = await getAccountBalance(operatorId, tokenId);
-	if (acctBal < 0) {
-		// associate
-		// now associate the token to the operator account
-		const associateToken = await new TokenAssociateTransaction()
-			.setAccountId(operatorId)
-			.setTokenIds([tokenId])
-			.freezeWith(client)
-			.sign(operatorKey);
+	const [acctTokenBal, accountHbarBal] = await getAccountBalance(operatorId, tokenId);
+	const [contractTokenBal, contractHbarBal] = await getContractBalance(contractId, tokenId);
 
-		const associateTokenTx = await associateToken.execute(client);
-		const associateTokenRx = await associateTokenTx.getReceipt(client);
-
-		const associateTokenStatus = associateTokenRx.status;
-
-		console.log('The associate transaction status: ' + associateTokenStatus.toString());
-	}
-	else {
-		console.log('Token already associated - ', acctBal);
-	}
-
-	// Execute token transfer from TokenSender to Operator
-	const tokenTransfer = new ContractExecuteTransaction()
-		.setContractId(contractId)
-		.setGas(4000000)
-		.setFunction('transfer',
-			new ContractFunctionParameters()
-				.addAddress(tokenIdSolidityAddr)
-				.addAddress(operatorId.toSolidityAddress())
-				.addUint256(1000000),
-		);
-
-	try {
-		const tokenTransferTx = await tokenTransfer.execute(client);
-		const tokenTransferRx = await tokenTransferTx.getReceipt(client);
-		const tokenTransferStatus = tokenTransferRx.status;
-
-		console.log('Token transfer transaction status: ' + tokenTransferStatus.toString());
-
-		console.log(operatorId.toString() + ' account balance for token ' + tokenId + ' is: ' + await getAccountBalance(operatorId, tokenId));
-
-		console.log(contractId.toString() + ' account balance for token ' + tokenId + ' is: ' + await getContractBalance(contractId, tokenId));
-	}
-	catch (err) {
-		if (err instanceof ReceiptStatusError) {
-			console.log(err.status, err.name, err.message);
-		}
-	}
+	console.log('operatorId',
+		operatorId.toString(),
+		'balance:',
+		acctTokenBal,
+		' -> ',
+		accountHbarBal.toString());
+	console.log('contract: ',
+		contractId.toString(),
+		'balance:',
+		contractTokenBal,
+		' -> ',
+		contractHbarBal.toString());
 };
 
 async function getAccountBalance(acctId, tokenId) {
@@ -149,7 +116,7 @@ async function getAccountBalance(acctId, tokenId) {
 		balance = -1;
 	}
 
-	return balance;
+	return [balance, info.balance];
 }
 
 async function getContractBalance(ctrctId, tokenId) {
@@ -167,7 +134,7 @@ async function getContractBalance(ctrctId, tokenId) {
 		balance = -1;
 	}
 
-	return balance;
+	return [balance, info.balance];
 }
 
 main()

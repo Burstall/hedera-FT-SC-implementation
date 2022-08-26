@@ -10,6 +10,7 @@ const {
 	ContractId,
 	ContractInfoQuery,
 	ReceiptStatusError,
+	TransferTransaction,
 } = require('@hashgraph/sdk');
 // const { hethers } = require('@hashgraph/hethers');
 require('dotenv').config();
@@ -24,20 +25,35 @@ const tokenDecimal = Number(process.env.TOKEN_DECIMALS);
 
 const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 
+async function contractExecuteFcn(cId, gasLim, fcnName, params, amountHbar) {
+	const contractExecuteTx = new ContractExecuteTransaction()
+		.setContractId(cId)
+		.setGas(gasLim)
+		.setFunction(fcnName, params)
+		.setPayableAmount(amountHbar);
+	const contractExecuteSubmit = await contractExecuteTx.execute(client);
+	const contractExecuteRx = await contractExecuteSubmit.getReceipt(client);
+	return contractExecuteRx;
+}
+
 const main = async () => {
-	const acctBal = await getAccountBalance(operatorId);
-	const ctrctBal = await getContractBalance(contractId);
+	let [acctTokenBal, accountHbarBal] = await getAccountBalance(operatorId);
+	let [contractTokenBal, contractHbarBal] = await getContractBalance(contractId);
 
 	console.log('Using token: ',
 		tokenId.toString(),
 		'balance:',
-		acctBal);
+		acctTokenBal,
+		' -> ',
+		accountHbarBal.toString());
 	console.log('Using contract: ',
 		contractId.toString(),
 		'balance:',
-		ctrctBal);
+		contractTokenBal,
+		' -> ',
+		contractHbarBal.toString());
 
-	if (acctBal < 0) {
+	if (acctTokenBal < 0) {
 		// associate
 		// now associate the token to the operator account
 		const associateToken = await new TokenAssociateTransaction()
@@ -60,33 +76,105 @@ const main = async () => {
 	console.log('To:', operatorId.toString(), operatorId.toSolidityAddress());
 
 	// Execute token transfer from TokenSender to Operator
-	const tokenTransfer = new ContractExecuteTransaction()
-		.setContractId(contractId)
-		.setGas(4000000)
-		.setFunction('transfer',
-			new ContractFunctionParameters()
-				.addAddress(tokenIdSolidityAddr)
-				.addAddress(operatorId.toSolidityAddress())
-				.addUint256(1 * (10 ** tokenDecimal)),
-		);
-
 	try {
-		const tokenTransferTx = await tokenTransfer.execute(client);
-		const tokenTransferRx = await tokenTransferTx.getReceipt(client);
+		const gasLim = 400000;
+		const params = new ContractFunctionParameters()
+			.addAddress(tokenIdSolidityAddr)
+			.addAddress(operatorId.toSolidityAddress())
+			.addUint256(1 * (10 ** tokenDecimal));
+		const tokenTransferRx = await contractExecuteFcn(contractId, gasLim, 'transfer', params);
 		const tokenTransferStatus = tokenTransferRx.status;
 
 		console.log('Token transfer transaction status: ' + tokenTransferStatus.toString());
+		[acctTokenBal, accountHbarBal] = await getAccountBalance(operatorId);
+		[contractTokenBal, contractHbarBal] = await getContractBalance(contractId);
+		console.log(operatorId.toString() + ' account balance for token ' + tokenId + ' is: ' + acctTokenBal + ' -> ' + accountHbarBal.toString());
 
-		console.log(operatorId.toString() + ' account balance for token ' + tokenId + ' is: ' + await getAccountBalance(operatorId, tokenId));
-
-		console.log(contractId.toString() + ' account balance for token ' + tokenId + ' is: ' + await getContractBalance(contractId, tokenId));
+		console.log(contractId.toString() + ' account balance for token ' + tokenId + ' is: ' + contractTokenBal + ' -> ' + contractHbarBal.toString());
 	}
 	catch (err) {
 		if (err instanceof ReceiptStatusError) {
 			console.log(err.status, err.name, err.message);
 		}
+		else {
+			console.log(err);
+		}
+	}
+
+	// Execute burn
+	try {
+		console.log('\n -Attempting Burn..');
+		const gasLim = 400000;
+		const params = new ContractFunctionParameters()
+			.addAddress(tokenIdSolidityAddr)
+			.addUint256(5 * (10 ** tokenDecimal));
+		const burnTx = await contractExecuteFcn(contractId, gasLim, 'burnSupply', params);
+		const burnTxStatus = burnTx.status;
+
+		console.log('Burn request: ' + burnTxStatus.toString());
+		[acctTokenBal, accountHbarBal] = await getAccountBalance(operatorId);
+		[contractTokenBal, contractHbarBal] = await getContractBalance(contractId);
+		console.log(operatorId.toString() + ' account balance for token ' + tokenId + ' is: ' + acctTokenBal + ' -> ' + accountHbarBal.toString());
+
+		console.log(contractId.toString() + ' account balance for token ' + tokenId + ' is: ' + contractTokenBal + ' -> ' + contractHbarBal.toString());
+	}
+	catch (err) {
+		if (err instanceof ReceiptStatusError) {
+			console.log(err.status, err.name, err.message);
+		}
+		else {
+			console.log(err);
+		}
+	}
+
+	// send hbar to contract
+	try {
+		console.log('\n -Attempting to send hbar to contract (Hederar JS SDK)..');
+		const hbarTransferRx = await hbarTransferFcn(operatorId, contractId, 11);
+		const tokenTransferStatus = hbarTransferRx.status;
+		console.log('Hbar send *TO* contract status: ' + tokenTransferStatus.toString());
+		[acctTokenBal, accountHbarBal] = await getAccountBalance(operatorId);
+		[contractTokenBal, contractHbarBal] = await getContractBalance(contractId);
+		console.log(operatorId.toString() + ' account balance for token ' + tokenId + ' is: ' + acctTokenBal + ' -> ' + accountHbarBal.toString());
+
+		console.log(contractId.toString() + ' account balance for token ' + tokenId + ' is: ' + contractTokenBal + ' -> ' + contractHbarBal.toString());
+	}
+	catch (err) {
+		console.log(err);
+	}
+
+	// move hbar from contract to operator
+	try {
+		console.log('\n -Attempting to retrieve hbar from contract');
+		const gasLim = 400000;
+		const params = new ContractFunctionParameters()
+			.addAddress(operatorId.toSolidityAddress())
+			.addUint256(11 * 1e8);
+		const burnTx = await contractExecuteFcn(contractId, gasLim, 'callHbar', params);
+		const burnTxStatus = burnTx.status;
+
+		console.log('Move hbar *FROM* contract: ' + burnTxStatus.toString());
+		[acctTokenBal, accountHbarBal] = await getAccountBalance(operatorId);
+		[contractTokenBal, contractHbarBal] = await getContractBalance(contractId);
+		console.log(operatorId.toString() + ' account balance for token ' + tokenId + ' is: ' + acctTokenBal + ' -> ' + accountHbarBal.toString());
+
+		console.log(contractId.toString() + ' account balance for token ' + tokenId + ' is: ' + contractTokenBal + ' -> ' + contractHbarBal.toString());
+	}
+	catch (err) {
+		console.log(err);
 	}
 };
+
+async function hbarTransferFcn(sender, receiver, amount) {
+	const transferTx = new TransferTransaction()
+		.addHbarTransfer(sender, -amount)
+		.addHbarTransfer(receiver, amount)
+		.freezeWith(client);
+	const transferSign = await transferTx.sign(operatorKey);
+	const transferSubmit = await transferSign.execute(client);
+	const transferRx = await transferSubmit.getReceipt(client);
+	return transferRx;
+}
 
 async function getAccountBalance(acctId) {
 
@@ -97,9 +185,10 @@ async function getAccountBalance(acctId) {
 
 	let balance;
 	const tokenMap = info.tokenRelationships;
+	const tokenBal = tokenMap.get(tokenId.toString());
 	try {
-		if (tokenMap) {
-			balance = tokenMap.get(tokenId.toString()).balance * (10 ** -tokenDecimal);
+		if (tokenBal) {
+			balance = tokenBal.balance * (10 ** -tokenDecimal);
 		}
 		else {
 			balance = -1;
@@ -109,7 +198,7 @@ async function getAccountBalance(acctId) {
 		balance = -1;
 	}
 
-	return balance;
+	return [balance, info.balance];
 }
 
 async function getContractBalance(ctrctId) {
@@ -122,14 +211,15 @@ async function getContractBalance(ctrctId) {
 	let balance;
 
 	const tokenMap = info.tokenRelationships;
-	if (tokenMap) {
-		balance = tokenMap.get(tokenId.toString()).balance * (10 ** -tokenDecimal);
+	const tokenBal = tokenMap.get(tokenId.toString());
+	if (tokenBal) {
+		balance = tokenBal.balance * (10 ** -tokenDecimal);
 	}
 	else {
 		balance = -1;
 	}
 
-	return balance;
+	return [balance, info.balance];
 }
 
 main()
