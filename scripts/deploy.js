@@ -25,38 +25,27 @@ const tokenDecimal = Number(process.env.TOKEN_DECIMALS);
 const tokenInitalSupply = Number(process.env.TOKEN_INITALSUPPLY);
 
 const client = Client.forTestnet().setOperator(operatorId, operatorKey);
-/*
-// Account creation function
-async function accountCreator(pvKey, iBal) {
 
-	const response = await new AccountCreateTransaction()
-		.setInitialBalance(new Hbar(iBal))
-		.setKey(pvKey.publicKey)
-		.execute(client);
-
-	const receipt = await response.getReceipt(client);
-
-	return receipt.accountId;
+async function contractDeployFcn(bytecode, gasLim) {
+	const contractCreateTx = new ContractCreateFlow().setBytecode(bytecode).setGas(gasLim);
+	const contractCreateSubmit = await contractCreateTx.execute(client);
+	const contractCreateRx = await contractCreateSubmit.getReceipt(client);
+	const contractId = contractCreateRx.contractId;
+	const contractAddress = contractId.toSolidityAddress();
+	return [contractId, contractAddress];
 }
-*/
+
 const main = async () => {
-
-	// const treasuryKey = PrivateKey.generateED25519();
-	// const treasuryId = await accountCreator(treasuryKey, 10);
-
 	const json = JSON.parse(fs.readFileSync('./artifacts/contracts/FungibleTokenCreator.sol/FungibleTokenCreator.json'));
 
-	const bytecode = json.bytecode;
+	const contractBytecode = json.bytecode;
 
-	const createContract = new ContractCreateFlow()
-		.setGas(150000)
-		.setBytecode(bytecode);
-	const createContractTx = await createContract.execute(client);
-	const createContractRx = await createContractTx.getReceipt(client);
-	const contractId = createContractRx.contractId;
-	const contractSolidityAddress = contractId.toSolidityAddress();
+	console.log('\n- Deploying contract...');
+	const gasLimit = 100000;
 
-	console.log(`Contract created with ID: ${contractId} / ${contractSolidityAddress}`);
+	const [contractId, contractAddress] = await contractDeployFcn(contractBytecode, gasLimit);
+
+	console.log(`Contract created with ID: ${contractId} / ${contractAddress}`);
 
 	// Create FT using precompile function
 	const createToken = new ContractExecuteTransaction()

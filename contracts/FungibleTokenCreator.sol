@@ -87,6 +87,8 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         IERC20(token).transfer(recipient, amount);
     }
 
-    fallback () external{}
+    receive() external payable {}
+
+    fallback() external payable {}
 
 }
