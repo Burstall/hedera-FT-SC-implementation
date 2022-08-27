@@ -40,19 +40,22 @@ const main = async () => {
 	const contractBytecode = json.bytecode;
 
 	console.log('\n- Deploying contract...');
-	const gasLimit = 100000;
+	const gasLimit = 200000;
 
 	const [contractId, contractAddress] = await contractDeployFcn(contractBytecode, gasLimit);
 
 	console.log(`Contract created with ID: ${contractId} / ${contractAddress}`);
+
+	const tokenKey = PrivateKey.generate().toBytes;
 
 	// Create FT using precompile function
 	const createToken = new ContractExecuteTransaction()
 		.setContractId(contractId)
 		.setGas(300000)
 		.setPayableAmount(20)
-		.setFunction('createFungible',
+		.setFunction('createFungibleWithBurn',
 			/*
+			*	ed25519Key
 			*	FT NAME
 			*	FT SYMBOL
 			*	FT Initial Supply
@@ -60,6 +63,7 @@ const main = async () => {
 			*	FT auto renew periood
 			*/
 			new ContractFunctionParameters()
+				.addBytes(tokenKey)
 				.addString(tokenName)
 				.addString(tokenSymbol)
 				.addUint256(tokenInitalSupply)

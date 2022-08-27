@@ -14,6 +14,10 @@ const {
 } = require('@hashgraph/sdk');
 // const { hethers } = require('@hashgraph/hethers');
 require('dotenv').config();
+const fs = require('fs');
+const Web3 = require('web3');
+const web3 = new Web3();
+let abi;
 
 // Get operator from .env file
 const operatorKey = PrivateKey.fromString(process.env.PRIVATE_KEY);
@@ -26,17 +30,45 @@ const tokenDecimal = Number(process.env.TOKEN_DECIMALS);
 const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 
 async function contractExecuteFcn(cId, gasLim, fcnName, params, amountHbar) {
-	const contractExecuteTx = new ContractExecuteTransaction()
+	const contractExecuteTx = await new ContractExecuteTransaction()
 		.setContractId(cId)
 		.setGas(gasLim)
 		.setFunction(fcnName, params)
-		.setPayableAmount(amountHbar);
-	const contractExecuteSubmit = await contractExecuteTx.execute(client);
-	const contractExecuteRx = await contractExecuteSubmit.getReceipt(client);
-	return contractExecuteRx;
+		.setPayableAmount(amountHbar)
+		.execute(client);
+
+	// get the results of the function call;
+	const record = await contractExecuteTx.getRecord(client);
+	console.log('record bytes:', JSON.stringify(record.contractFunctionResult.bytes, 4));
+	console.log('Execution return', fcnName, JSON.stringify(contractExecuteTx, 3));
+	const contractResults = decodeFunctionResult(fcnName, record.contractFunctionResult.bytes);
+	const contractExecuteRx = await contractExecuteTx.getReceipt(client);
+	return [contractExecuteRx, contractResults];
+}
+
+/**
+ * Decodes the result of a contract's function execution
+ * @param functionName the name of the function within the ABI
+ * @param resultAsBytes a byte array containing the execution result
+ */
+function decodeFunctionResult(functionName, resultAsBytes) {
+	const functionAbi = abi.find(func => func.name === functionName);
+	const functionParameters = functionAbi.outputs;
+	console.log(
+		'\n -Decoding:',
+		functionName,
+		'\n -outputs expected:',
+		JSON.stringify(functionParameters, 3));
+	const resultHex = '0x'.concat(Buffer.from(resultAsBytes).toString('hex'));
+	const result = web3.eth.abi.decodeParameters(functionParameters, resultHex);
+	return result;
 }
 
 const main = async () => {
+	// import ABI
+	const json = JSON.parse(fs.readFileSync('./artifacts/contracts/FungibleTokenCreator.sol/FungibleTokenCreator.json', 'utf8'));
+	abi = json.abi;
+	console.log('\n -Loading ABI...\n');
 	let [acctTokenBal, accountHbarBal] = await getAccountBalance(operatorId);
 	let [contractTokenBal, contractHbarBal] = await getContractBalance(contractId);
 
@@ -82,7 +114,9 @@ const main = async () => {
 			.addAddress(tokenIdSolidityAddr)
 			.addAddress(operatorId.toSolidityAddress())
 			.addUint256(1 * (10 ** tokenDecimal));
-		const tokenTransferRx = await contractExecuteFcn(contractId, gasLim, 'transfer', params);
+		const [tokenTransferRx, contractOutput] = await contractExecuteFcn(contractId, gasLim, 'transfer', params);
+		console.log('Function results', JSON.stringify(contractOutput, 3));
+		console.log('Reciept', JSON.stringify(tokenTransferRx, 3));
 		const tokenTransferStatus = tokenTransferRx.status;
 
 		console.log('Token transfer transaction status: ' + tokenTransferStatus.toString());
@@ -108,8 +142,10 @@ const main = async () => {
 		const params = new ContractFunctionParameters()
 			.addAddress(tokenIdSolidityAddr)
 			.addUint256(5 * (10 ** tokenDecimal));
-		const burnTx = await contractExecuteFcn(contractId, gasLim, 'burnSupply', params);
-		const burnTxStatus = burnTx.status;
+		const [burnTxRx, contractOutput] = await contractExecuteFcn(contractId, gasLim, 'burnSupply', params, 0);
+		console.log('Function results', JSON.stringify(contractOutput, 3));
+		console.log('Reciept', JSON.stringify(burnTxRx, 3));
+		const burnTxStatus = burnTxRx.status;
 
 		console.log('Burn request: ' + burnTxStatus.toString());
 		[acctTokenBal, accountHbarBal] = await getAccountBalance(operatorId);
@@ -150,10 +186,12 @@ const main = async () => {
 		const params = new ContractFunctionParameters()
 			.addAddress(operatorId.toSolidityAddress())
 			.addUint256(11 * 1e8);
-		const burnTx = await contractExecuteFcn(contractId, gasLim, 'callHbar', params);
-		const burnTxStatus = burnTx.status;
+		const [callHbarRx, contractOutput] = await contractExecuteFcn(contractId, gasLim, 'callHbar', params);
+		console.log('Function results', JSON.stringify(contractOutput, 3));
+		console.log('Reciept', JSON.stringify(callHbarRx, 3));
+		const callHbarStatus = callHbarRx.status;
 
-		console.log('Move hbar *FROM* contract: ' + burnTxStatus.toString());
+		console.log('Move hbar *FROM* contract: ' + callHbarStatus.toString());
 		[acctTokenBal, accountHbarBal] = await getAccountBalance(operatorId);
 		[contractTokenBal, contractHbarBal] = await getContractBalance(contractId);
 		console.log(operatorId.toString() + ' account balance for token ' + tokenId + ' is: ' + acctTokenBal + ' -> ' + accountHbarBal.toString());
