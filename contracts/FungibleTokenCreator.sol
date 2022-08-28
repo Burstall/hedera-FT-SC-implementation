@@ -57,7 +57,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
 		token.tokenKeys = keys;
 
 		if (maxSupply > 0) {
-			token.tokenSupplyType = false;
+			token.tokenSupplyType = true;
 			token.maxSupply = maxSupply;
 		}
 
@@ -95,24 +95,28 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
     ) external payable returns (address createdTokenAddress) {
 
 		// instantiate the list of keys we'll use for token create
-        IHederaTokenService.TokenKey[] memory keys = new IHederaTokenService.TokenKey[](2);
+        // IHederaTokenService.TokenKey[] memory keys = new IHederaTokenService.TokenKey[](2);
+		IHederaTokenService.TokenKey[] memory keys = new IHederaTokenService.TokenKey[](1);
 
 		/*
 		keys[0] = createSingleKey(HederaTokenService.ADMIN_KEY_TYPE, KeyHelper.INHERIT_ACCOUNT_KEY, "");
 
 		// create TokenKey of type wipeKey
+		*/
         uint supplyWipeKeyType;
-        IHederaTokenService.KeyValue memory supplyWipeKeyValue;
-        // turn on bits corresponding to supply and wipe key types
+		// turn on bits corresponding to supply and wipe key types
         supplyWipeKeyType = supplyWipeKeyType.setBit(3);
 		supplyWipeKeyType = supplyWipeKeyType.setBit(4);
+		/*
+        IHederaTokenService.KeyValue memory supplyWipeKeyValue;
+        
         // set the value of the key to the ed25519Key passed as function arg
         supplyWipeKeyValue.ed25519 = ed25519Key;
         keys[1] = IHederaTokenService.TokenKey (supplyWipeKeyType, supplyWipeKeyValue);
 		*/
 
-		keys[0] = createSingleKey(HederaTokenService.WIPE_KEY_TYPE, KeyHelper.CONTRACT_ID_KEY, address(this));
-		keys[1] = createSingleKey(HederaTokenService.SUPPLY_KEY_TYPE, KeyHelper.CONTRACT_ID_KEY, address(this));
+		keys[0] = createSingleKey(supplyWipeKeyType, KeyHelper.CONTRACT_ID_KEY, address(this));
+		//keys[1] = createSingleKey(HederaTokenService.SUPPLY_KEY_TYPE, KeyHelper.CONTRACT_ID_KEY, address(this));
 
 		// define the token
         IHederaTokenService.HederaToken memory token;
@@ -123,7 +127,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
 		token.tokenKeys = keys;
 
 		if (maxSupply > 0) {
-			token.tokenSupplyType = false;
+			token.tokenSupplyType = true;
 			token.maxSupply = maxSupply;
 		}
         // create the expiry schedule for the token using ExpiryHelper
@@ -191,13 +195,15 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         }
 	}
 
-	function burnFromTreasury(address token, uint64 amount) external payable onlyOwner
+	function burnFromTreasury(address token, uint64 amount, int64[] memory _serials) external payable onlyOwner
 		returns (int responseCode, uint64 newTotalSupply) {
-		
-		int64[] memory _serials;
+
+		//int64[] memory _serials;
 
         (responseCode, newTotalSupply) =
                     HederaTokenService.burnToken(token, amount, _serials);
+
+		emit tokenControllerMessage("BURN", msg.sender, amount, "Burn (from treasuury) complete");
 
         if (responseCode != HederaResponseCodes.SUCCESS) {
             revert ();
@@ -217,7 +223,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         if (responseCode != HederaResponseCodes.SUCCESS) {
             revert ();
         }
-		emit tokenControllerMessage("BURN", msg.sender, amount, "Burn complete");
+		emit tokenControllerMessage("BURN", msg.sender, amount, "Burn (from user) complete");
     }
 
 	/// Initiates a Fungible Token Transfer

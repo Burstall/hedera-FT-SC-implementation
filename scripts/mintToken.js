@@ -44,8 +44,8 @@ const main = async () => {
 
 	// Create FT using precompile function
 	try {
-		const fcnName = 'createFungibleWithBurn';
-		// const fcnName = 'createFungibleWithSupplyAndBurn';
+		// const fcnName = 'createFungibleWithBurn';
+		const fcnName = 'createFungibleWithSupplyAndBurn';
 		// const fcnName = 'createTokenWithNoKeys';
 		const createToken = new ContractExecuteTransaction()
 			.setContractId(contractId)
