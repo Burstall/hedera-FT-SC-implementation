@@ -45,6 +45,7 @@ async function getEventsFromMirror(contractId) {
 
 				// output the from address and message stored in the event
 				console.log(`event(s): '${AccountId.fromSolidityAddress(event.from).toString()}' minted with message: '${event.message}'`);
+				// console.log(JSON.stringify(event, 4));
 			});
 		})
 		.catch(function(err) {

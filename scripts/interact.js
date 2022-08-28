@@ -113,7 +113,7 @@ const main = async () => {
 		const params = new ContractFunctionParameters()
 			.addAddress(tokenIdSolidityAddr)
 			.addAddress(operatorId.toSolidityAddress())
-			.addUint256(1 * (10 ** tokenDecimal));
+			.addUint256(5 * (10 ** tokenDecimal));
 		const [tokenTransferRx, contractOutput] = await contractExecuteFcn(contractId, gasLim, 'transfer', params);
 		console.log('Function results', JSON.stringify(contractOutput, 3));
 		console.log('Reciept', JSON.stringify(tokenTransferRx, 3));
@@ -141,8 +141,8 @@ const main = async () => {
 		const gasLim = 400000;
 		const params = new ContractFunctionParameters()
 			.addAddress(tokenIdSolidityAddr)
-			.addUint256(5 * (10 ** tokenDecimal));
-		const [burnTxRx, contractOutput] = await contractExecuteFcn(contractId, gasLim, 'burnSupply', params, 0);
+			.addUint32(4 * (10 ** tokenDecimal));
+		const [burnTxRx, contractOutput] = await contractExecuteFcn(contractId, gasLim, 'burn', params, 0);
 		console.log('Function results', JSON.stringify(contractOutput, 3));
 		console.log('Reciept', JSON.stringify(burnTxRx, 3));
 		const burnTxStatus = burnTxRx.status;

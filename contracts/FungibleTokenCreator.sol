@@ -15,57 +15,64 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 contract FungibleTokenCreator is ExpiryHelper, Ownable {
 	using Bits for uint;
 
-	event tokenControllerMessage(address indexed from, uint amt, string message);
+	event tokenControllerMessage(string msgType, address indexed from, uint amt, string message);
 
     // create a fungible Token with no custom fees,
 	// with calling contract as admin key
 	// add a wipe key in order to allow implmentation of burn function
 	// => no additional mint, no pause
+
+	/// @param maxSupply Set to 0 for an infinite token, set > 0 to enforce capped suply @ maxSupply
     function createFungibleWithBurn(
-		bytes memory ed25519Key,
+		// bytes memory ed25519Key,
         string memory name,
         string memory symbol,
+		string memory memo,
         uint initialSupply,
         uint decimals,
-        uint32 autoRenewPeriod
+		uint32 maxSupply
     ) external payable returns (address createdTokenAddress) {
-		emit tokenControllerMessage(msg.sender, 0, "begin mint");
 		// instantiate the list of keys we'll use for token create
-        IHederaTokenService.TokenKey[] memory keys = new IHederaTokenService.TokenKey[](2);
+        // IHederaTokenService.TokenKey[] memory keys = new IHederaTokenService.TokenKey[](2);
+		IHederaTokenService.TokenKey[] memory keys = new IHederaTokenService.TokenKey[](1);
 
-		keys[0] = createSingleKey(HederaTokenService.ADMIN_KEY_TYPE, KeyHelper.INHERIT_ACCOUNT_KEY, "");
-		emit tokenControllerMessage(msg.sender, 0, "single key created");
+		// keys[0] = createSingleKey(HederaTokenService.ADMIN_KEY_TYPE, KeyHelper.INHERIT_ACCOUNT_KEY, "");
+		
 		// create TokenKey of type wipeKey
-        uint wipeKeyType;
-        IHederaTokenService.KeyValue memory wipeKeyValue;
+        // uint wipeKeyType;
+        // IHederaTokenService.KeyValue memory wipeKeyValue;
         // turn on bits corresponding to supply and pause key types
-        wipeKeyType = wipeKeyType.setBit(uint8(HederaTokenService.WIPE_KEY_TYPE));
+        // wipeKeyType = wipeKeyType.setBit(3);
         // set the value of the key to the ed25519Key passed as function arg
-        wipeKeyValue.ed25519 = ed25519Key;
-        keys[1] = IHederaTokenService.TokenKey (wipeKeyType, wipeKeyValue);
-		emit tokenControllerMessage(msg.sender, 0, string(abi.encode("wipe key set: ", Strings.toString(wipeKeyType))));
+        // wipeKeyValue.ed25519 = ed25519Key;
+        // keys[1] = IHederaTokenService.TokenKey (wipeKeyType, wipeKeyValue);
+		keys[0] = createSingleKey(HederaTokenService.WIPE_KEY_TYPE, KeyHelper.CONTRACT_ID_KEY, address(this));
 
 		// define the token
         IHederaTokenService.HederaToken memory token;
         token.name = name;
         token.symbol = symbol;
+		token.memo = memo;
         token.treasury = address(this);
 		token.tokenKeys = keys;
 
-        // create the expiry schedule for the token using ExpiryHelper
-        token.expiry = createAutoRenewExpiry(address(this), autoRenewPeriod);
+		if (maxSupply > 0) {
+			token.tokenSupplyType = false;
+			token.maxSupply = maxSupply;
+		}
 
-		emit tokenControllerMessage(msg.sender, initialSupply, "token Obj formed");
+        // create the expiry schedule for the token using ExpiryHelper
+        token.expiry = createAutoRenewExpiry(address(this), HederaTokenService.defaultAutoRenewPeriod);
 
         // call HTS precompiled contract, passing initial supply and decimals
         (int responseCode, address tokenAddress) =
                     HederaTokenService.createFungibleToken(token, initialSupply, decimals);
-
+	
         if (responseCode != HederaResponseCodes.SUCCESS) {
             revert ();
         }
-
-		emit tokenControllerMessage(msg.sender, initialSupply, "Success minting token with wipe key");
+	
+		emit tokenControllerMessage("MINT", msg.sender, initialSupply, "Minted with supply key");
 
         createdTokenAddress = tokenAddress;
     }
@@ -75,39 +82,52 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
 	// add a wipe key in order to allow implmentation of burn function
 	// add a supply key to allow mint and burn in place
 	// => no additional mint, no pause
+
+	/// @param maxSupply Set to 0 for an infinite token, set > 0 to enforce capped suply @ maxSupply
 	function createFungibleWithSupplyAndBurn(
-		bytes memory ed25519Key,
+		// bytes memory ed25519Key,
         string memory name,
         string memory symbol,
+		string memory memo,
         uint initialSupply,
         uint decimals,
-        uint32 autoRenewPeriod
+		uint32 maxSupply
     ) external payable returns (address createdTokenAddress) {
 
 		// instantiate the list of keys we'll use for token create
         IHederaTokenService.TokenKey[] memory keys = new IHederaTokenService.TokenKey[](2);
 
+		/*
 		keys[0] = createSingleKey(HederaTokenService.ADMIN_KEY_TYPE, KeyHelper.INHERIT_ACCOUNT_KEY, "");
 
 		// create TokenKey of type wipeKey
         uint supplyWipeKeyType;
         IHederaTokenService.KeyValue memory supplyWipeKeyValue;
-        // turn on bits corresponding to supply and pause key types
-        supplyWipeKeyType = supplyWipeKeyType.setBit(uint8(HederaTokenService.WIPE_KEY_TYPE));
-		supplyWipeKeyType = supplyWipeKeyType.setBit(uint8(HederaTokenService.SUPPLY_KEY_TYPE));
+        // turn on bits corresponding to supply and wipe key types
+        supplyWipeKeyType = supplyWipeKeyType.setBit(3);
+		supplyWipeKeyType = supplyWipeKeyType.setBit(4);
         // set the value of the key to the ed25519Key passed as function arg
         supplyWipeKeyValue.ed25519 = ed25519Key;
         keys[1] = IHederaTokenService.TokenKey (supplyWipeKeyType, supplyWipeKeyValue);
+		*/
+
+		keys[0] = createSingleKey(HederaTokenService.WIPE_KEY_TYPE, KeyHelper.CONTRACT_ID_KEY, address(this));
+		keys[1] = createSingleKey(HederaTokenService.SUPPLY_KEY_TYPE, KeyHelper.CONTRACT_ID_KEY, address(this));
 
 		// define the token
         IHederaTokenService.HederaToken memory token;
         token.name = name;
         token.symbol = symbol;
+		token.memo = memo;
         token.treasury = address(this);
 		token.tokenKeys = keys;
 
+		if (maxSupply > 0) {
+			token.tokenSupplyType = false;
+			token.maxSupply = maxSupply;
+		}
         // create the expiry schedule for the token using ExpiryHelper
-        token.expiry = createAutoRenewExpiry(address(this), autoRenewPeriod);
+        token.expiry = createAutoRenewExpiry(address(this), HederaTokenService.defaultAutoRenewPeriod);
 
         // call HTS precompiled contract, passing initial supply and decimals
         (int responseCode, address tokenAddress) =
@@ -117,7 +137,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
             revert ();
         }
 
-		emit tokenControllerMessage(msg.sender, initialSupply, "Success minting token with supply/wipe keys");
+		emit tokenControllerMessage("MINT", msg.sender, initialSupply, "Success minting token with supply/wipe keys");
 
         createdTokenAddress = tokenAddress;
     }
@@ -126,18 +146,25 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
 	function createTokenWithNoKeys(
 		string memory name,
         string memory symbol,
+		string memory memo,
         uint initialSupply,
         uint decimals,
-        uint32 autoRenewPeriod
+		uint32 maxSupply
 	) 	public payable returns (address createdTokenAddress) {
 		//define the token
         IHederaTokenService.HederaToken memory token;
         token.name = name;
         token.symbol = symbol;
+		token.memo = memo;
         token.treasury = address(this);
 
+		if (maxSupply > 0) {
+			token.tokenSupplyType = false;
+			token.maxSupply = maxSupply;
+		}
+
 		// create the expiry schedule for the token using ExpiryHelper
-        token.expiry = createAutoRenewExpiry(address(this), autoRenewPeriod);
+        token.expiry = createAutoRenewExpiry(address(this), HederaTokenService.defaultAutoRenewPeriod);
 
         (int responseCode, address tokenAddress) =
        		HederaTokenService.createFungibleToken(token, initialSupply, decimals);
@@ -146,7 +173,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
             revert ();
         }
 
-		emit tokenControllerMessage(msg.sender, initialSupply, "Success minting token without keys");
+		emit tokenControllerMessage("MINT", msg.sender, initialSupply, "Success minting token without keys");
 
         createdTokenAddress = tokenAddress;
     }
@@ -190,7 +217,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         if (responseCode != HederaResponseCodes.SUCCESS) {
             revert ();
         }
-		emit tokenControllerMessage(msg.sender, amount, "Burn complete");
+		emit tokenControllerMessage("BURN", msg.sender, amount, "Burn complete");
     }
 
 	/// Initiates a Fungible Token Transfer

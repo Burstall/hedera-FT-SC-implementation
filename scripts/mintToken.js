@@ -25,6 +25,9 @@ const tokenName = process.env.TOKEN_NAME;
 const tokenSymbol = process.env.TOKEN_SYMBOL;
 const tokenDecimal = Number(process.env.TOKEN_DECIMALS);
 const tokenInitalSupply = Number(process.env.TOKEN_INITALSUPPLY);
+const tokenMaxSupply = Number(process.env.TOKEN_MAXSUPPLY) || 0;
+// memo capped at 100 characters
+const tokenMemo = (process.env.TOKEN_MEMO).slice(0, Math.min(process.env.TOKEN_MEMO.length, 100));
 
 const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 
@@ -39,11 +42,10 @@ const main = async () => {
 
 	console.log(`Using Contract: ${contractId} / ${contractAddress}`);
 
-	const tokenKey = PrivateKey.generateED25519().toBytes();
-
 	// Create FT using precompile function
 	try {
 		const fcnName = 'createFungibleWithBurn';
+		// const fcnName = 'createFungibleWithSupplyAndBurn';
 		// const fcnName = 'createTokenWithNoKeys';
 		const createToken = new ContractExecuteTransaction()
 			.setContractId(contractId)
@@ -57,15 +59,17 @@ const main = async () => {
 			*	FT Initial Supply
 			*	FT Decimals
 			*	FT auto renew periood
+			*	FT max supply = 0 => infinite
 			*
 			*/
 				new ContractFunctionParameters()
-					.addBytes(tokenKey)
+					// .addBytes(operatorKey.publicKey.toBytes())
 					.addString(tokenName)
 					.addString(tokenSymbol)
+					.addString(tokenMemo)
 					.addUint256(tokenInitalSupply)
 					.addUint256(tokenDecimal)
-					.addUint32(7000000));
+					.addUint32(tokenMaxSupply));
 
 		const createTokenTx = await createToken.execute(client);
 
@@ -89,8 +93,12 @@ const main = async () => {
 		});
 
 		console.log('\n -executed tx:', JSON.stringify(createToken, 4));
-		// console.log('\n -token record:', JSON.stringify(createTokenRecord, 4));
 		const tokenIdSolidityAddr = createTokenRecord.contractFunctionResult.getAddress(0);
+		console.log('\n -solidity address:', tokenIdSolidityAddr);
+		if (!tokenIdSolidityAddr) {
+			// something went wrong
+			console.log('\n -token record:', JSON.stringify(createTokenRecord, 4));
+		}
 		const tokenId = TokenId.fromSolidityAddress(tokenIdSolidityAddr);
 
 		console.log(`Token created with ID: ${tokenId} / ${tokenIdSolidityAddr}\n`);
