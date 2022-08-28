@@ -10,9 +10,12 @@ import './ExpiryHelper.sol';
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract FungibleTokenCreator is ExpiryHelper, Ownable {
 	using Bits for uint;
+
+	event tokenControllerMessage(address indexed from, uint amt, string message);
 
     // create a fungible Token with no custom fees,
 	// with calling contract as admin key
@@ -26,12 +29,12 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         uint decimals,
         uint32 autoRenewPeriod
     ) external payable returns (address createdTokenAddress) {
-
+		emit tokenControllerMessage(msg.sender, 0, "begin mint");
 		// instantiate the list of keys we'll use for token create
         IHederaTokenService.TokenKey[] memory keys = new IHederaTokenService.TokenKey[](2);
 
 		keys[0] = createSingleKey(HederaTokenService.ADMIN_KEY_TYPE, KeyHelper.INHERIT_ACCOUNT_KEY, "");
-
+		emit tokenControllerMessage(msg.sender, 0, "single key created");
 		// create TokenKey of type wipeKey
         uint wipeKeyType;
         IHederaTokenService.KeyValue memory wipeKeyValue;
@@ -40,6 +43,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         // set the value of the key to the ed25519Key passed as function arg
         wipeKeyValue.ed25519 = ed25519Key;
         keys[1] = IHederaTokenService.TokenKey (wipeKeyType, wipeKeyValue);
+		emit tokenControllerMessage(msg.sender, 0, string(abi.encode("wipe key set: ", Strings.toString(wipeKeyType))));
 
 		// define the token
         IHederaTokenService.HederaToken memory token;
@@ -51,6 +55,8 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         // create the expiry schedule for the token using ExpiryHelper
         token.expiry = createAutoRenewExpiry(address(this), autoRenewPeriod);
 
+		emit tokenControllerMessage(msg.sender, initialSupply, "token Obj formed");
+
         // call HTS precompiled contract, passing initial supply and decimals
         (int responseCode, address tokenAddress) =
                     HederaTokenService.createFungibleToken(token, initialSupply, decimals);
@@ -58,6 +64,8 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         if (responseCode != HederaResponseCodes.SUCCESS) {
             revert ();
         }
+
+		emit tokenControllerMessage(msg.sender, initialSupply, "Success minting token with wipe key");
 
         createdTokenAddress = tokenAddress;
     }
@@ -109,11 +117,13 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
             revert ();
         }
 
+		emit tokenControllerMessage(msg.sender, initialSupply, "Success minting token with supply/wipe keys");
+
         createdTokenAddress = tokenAddress;
     }
 
 	// mint an FT with no keys - not adjustable just clean and transparent
-	function createTokenWithDefaultExpiryAndEmptyKeys(
+	function createTokenWithNoKeys(
 		string memory name,
         string memory symbol,
         uint initialSupply,
@@ -135,6 +145,8 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         if (responseCode != HederaResponseCodes.SUCCESS) {
             revert ();
         }
+
+		emit tokenControllerMessage(msg.sender, initialSupply, "Success minting token without keys");
 
         createdTokenAddress = tokenAddress;
     }
@@ -178,6 +190,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         if (responseCode != HederaResponseCodes.SUCCESS) {
             revert ();
         }
+		emit tokenControllerMessage(msg.sender, amount, "Burn complete");
     }
 
 	/// Initiates a Fungible Token Transfer
