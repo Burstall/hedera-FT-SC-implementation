@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "solhint": "solhint -f table contracts/**/*.sol"
   },
   "keywords": [],
   "author": "",
@@ -12,8 +13,10 @@
   "dependencies": {
     "@hashgraph/hethers": "^1.1.4",
     "@hashgraph/sdk": "^2.17.1",
+    "abi-decoder": "^2.4.0",
     "axios": "^0.27.2",
-    "dotenv": "^16.0.1"
+    "dotenv": "^16.0.1",
+    "solhint": "^3.3.7"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^1.0.2",

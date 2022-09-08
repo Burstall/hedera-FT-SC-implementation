@@ -74,12 +74,14 @@ const main = async () => {
 
 	console.log('Using token: ',
 		tokenId.toString(),
+		' / ', tokenId.toSolidityAddress(),
 		'balance:',
 		acctTokenBal,
 		' -> ',
 		accountHbarBal.toString());
 	console.log('Using contract: ',
 		contractId.toString(),
+		' / ', contractId.toSolidityAddress(),
 		'balance:',
 		contractTokenBal,
 		' -> ',
@@ -138,7 +140,7 @@ const main = async () => {
 	// Execute burn (with wipe)
 	try {
 		console.log('\n -Attempting Burn (wipe method)..');
-		const gasLim = 800000;
+		const gasLim = 500000;
 		const params = new ContractFunctionParameters()
 			.addAddress(tokenIdSolidityAddr)
 			.addUint32(4 * (10 ** tokenDecimal));
@@ -163,12 +165,40 @@ const main = async () => {
 		}
 	}
 
+	// Execute mint additional supply
 	try {
-		console.log('\n -Attempting Burn (burn at treasury)..');
-		const gasLim = 10000000;
+		console.log('\n -Attempting to mint additional supply..');
+		const gasLim = 500000;
 		const params = new ContractFunctionParameters()
 			.addAddress(tokenIdSolidityAddr)
-			.addUint32(11 * (10 ** tokenDecimal))
+			.addUint64(7 * (10 ** tokenDecimal));
+		const [mintSupplyTxRx, contractOutput] = await contractExecuteFcn(contractId, gasLim, 'mintAdditionalSupply', params, 0);
+		console.log('Function results', JSON.stringify(contractOutput, 3));
+		// console.log('Receipt', JSON.stringify(burnTxRx, 3));
+		const mintSupplyTxStatus = mintSupplyTxRx.status;
+
+		console.log('Mint supply request: ' + mintSupplyTxStatus.toString());
+		[acctTokenBal, accountHbarBal] = await getAccountBalance(operatorId);
+		[contractTokenBal, contractHbarBal] = await getContractBalance(contractId);
+		console.log(operatorId.toString() + ' account balance for token ' + tokenId + ' is: ' + acctTokenBal + ' -> ' + accountHbarBal.toString());
+
+		console.log(contractId.toString() + ' account balance for token ' + tokenId + ' is: ' + contractTokenBal + ' -> ' + contractHbarBal.toString());
+	}
+	catch (err) {
+		if (err instanceof ReceiptStatusError) {
+			console.log(err.status, err.name, err.message);
+		}
+		else {
+			console.log(err);
+		}
+	}
+
+	try {
+		console.log('\n -Attempting Burn (burn at treasury)..');
+		const gasLim = 500000;
+		const params = new ContractFunctionParameters()
+			.addAddress(tokenIdSolidityAddr)
+			.addUint64(11 * (10 ** tokenDecimal))
 			// added array here for testing - ideally removed given FT focus.
 			.addInt64Array([1]);
 		const [burnTxRx, contractOutput] = await contractExecuteFcn(contractId, gasLim, 'burnFromTreasury', params, 0);
@@ -194,7 +224,7 @@ const main = async () => {
 
 	// send hbar to contract
 	try {
-		console.log('\n -Attempting to send hbar to contract (Hederar JS SDK)..');
+		console.log('\n -Attempting to send hbar to contract (Hedera JS SDK)..');
 		const hbarTransferRx = await hbarTransferFcn(operatorId, contractId, 11);
 		const tokenTransferStatus = hbarTransferRx.status;
 		console.log('Hbar send *TO* contract status: ' + tokenTransferStatus.toString());

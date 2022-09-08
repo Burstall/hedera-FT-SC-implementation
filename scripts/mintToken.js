@@ -86,7 +86,7 @@ const main = async () => {
 			});
 
 			// decode the event data
-			const event = decodeEvent('tokenControllerMessage', logStringHex, logTopics.slice(1));
+			const event = decodeEvent('TokenControllerMessage', logStringHex, logTopics.slice(1));
 
 			// output the from address stored in the event
 			console.log(`Record event: from '${AccountId.fromSolidityAddress(event.from).toString()}' update to '${event.message}'`);
