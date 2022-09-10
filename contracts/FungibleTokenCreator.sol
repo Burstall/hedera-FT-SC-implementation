@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity >=0.6.0.0 <0.9.0.0;
+pragma solidity >=0.6.0 <0.9.0;
 
 import "./HederaResponseCodes.sol";
 import "./HederaTokenService.sol";
@@ -350,6 +350,8 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
             spender
         );
 
+		emit TokenControllerMessage("Allowance checked", spender, amount, "checked");
+
         if (responseCode != HederaResponseCodes.SUCCESS) {
             revert("getAllowance - failed");
         }
@@ -363,15 +365,19 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
     ) external onlyOwner returns (bool sent) {
         sent = IERC20(token).transfer(recipient, amount);
         require(sent, "Failed to transfer Tokens");
+
+		emit TokenControllerMessage("Transfer", recipient, amount, "complete");
     }
 
-    function callHbar(address payable _receiverAddress, uint _amount)
+    function callHbar(address payable receiverAddress, uint amount)
         external
         onlyOwner
         returns (bool sent)
     {
-        (sent, ) = _receiverAddress.call{value: _amount}("");
+        (sent, ) = receiverAddress.call{value: amount}("");
         require(sent, "Failed to send Hbar");
+
+		emit TokenControllerMessage("Hbar Call", receiverAddress, amount, "complete");
     }
 
     // allows the contract top recieve HBAR
