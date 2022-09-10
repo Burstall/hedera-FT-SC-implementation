@@ -41,6 +41,34 @@ async function contractExecuteFcn(cId, gasLim, fcnName, params, amountHbar) {
 	const record = await contractExecuteTx.getRecord(client);
 	console.log('record bytes:', JSON.stringify(record.contractFunctionResult.bytes, 4));
 	console.log('Execution return', fcnName, JSON.stringify(contractExecuteTx, 3));
+
+	record.contractFunctionResult.logs.forEach((log) => {
+		if (log.data == '0x') return;
+
+		// convert the log.data (uint8Array) to a string
+		const logStringHex = '0x'.concat(Buffer.from(log.data).toString('hex'));
+
+		// get topics from log
+		const logTopics = [];
+		log.topics.forEach((topic) => {
+			logTopics.push('0x'.concat(Buffer.from(topic).toString('hex')));
+		});
+
+		// decode the event data
+		const event = decodeEvent('TokenControllerMessage', logStringHex, logTopics.slice(1));
+
+		if (event) {
+			// output the from address stored in the event
+			console.log(
+				`${event.msgType}: '${AccountId.fromSolidityAddress(event.from).toString()}' : ${event.amt} : '${event.message}'`,
+			);
+		}
+		else {
+			console.log('ERROR decoding (part of) log message');
+		}
+
+	});
+
 	const contractResults = decodeFunctionResult(fcnName, record.contractFunctionResult.bytes);
 	const contractExecuteRx = await contractExecuteTx.getReceipt(client);
 	return [contractExecuteRx, contractResults];
@@ -62,6 +90,17 @@ function decodeFunctionResult(functionName, resultAsBytes) {
 	const resultHex = '0x'.concat(Buffer.from(resultAsBytes).toString('hex'));
 	const result = web3.eth.abi.decodeParameters(functionParameters, resultHex);
 	return result;
+}
+
+function decodeEvent(eventName, log, topics) {
+	const eventAbi = abi.find((event) => event.name === eventName && event.type === 'event');
+	try {
+		const decodedLog = web3.eth.abi.decodeLog(eventAbi.inputs, log, topics);
+		return decodedLog;
+	}
+	catch (err) {
+		// console.log('ERROR decoding event', eventName, log, topics, err.message);
+	}
 }
 
 const main = async () => {

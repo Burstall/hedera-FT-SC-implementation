@@ -41,11 +41,9 @@ async function getEventsFromMirror(contractId) {
 			jsonResponse.logs.forEach(log => {
 				// decode the event data
 				if (log.data == '0x') return;
-				const event = decodeEvent('tokenControllerMessage', log.data, log.topics.slice(1));
+				const event = decodeEvent('TokenControllerMessage', log.data, log.topics.slice(1));
 
-				// output the from address and message stored in the event
-				console.log(`event(s): '${AccountId.fromSolidityAddress(event.from).toString()}' minted with message: '${event.message}'`);
-				// console.log(JSON.stringify(event, 4));
+				console.log(`${event.msgType}: '${AccountId.fromSolidityAddress(event.from).toString()}' : ${event.amt} : '${event.message}'`);
 			});
 		})
 		.catch(function(err) {
