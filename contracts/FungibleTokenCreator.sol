@@ -11,7 +11,6 @@ import "./AddrArrayLib.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 
 // Expiry Helper extends FeeHelper which extends KeyHelper
 // Ownable from OZ to limit access control
@@ -21,7 +20,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
     using AddrArrayLib for AddrArrayLib.Addresses;
 
     // List of trusted addresses which can mint tokens
-    AddrArrayLib.Addresses _allowanceWL;
+    AddrArrayLib.Addresses private _allowanceWL;
 
 
     event TokenControllerMessage(
