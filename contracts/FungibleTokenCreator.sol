@@ -1,25 +1,33 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity >=0.6.0 <0.9.0;
+pragma solidity >=0.5.8 <0.9.0;
 
 import "./HederaResponseCodes.sol";
 import "./HederaTokenService.sol";
 import "./ExpiryHelper.sol";
 
+import "./AddrArrayLib.sol";
+
 // Import Ownable from the OpenZeppelin Contracts library
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 // Expiry Helper extends FeeHelper which extends KeyHelper
 // Ownable from OZ to limit access control
 
 contract FungibleTokenCreator is ExpiryHelper, Ownable {
     using Bits for uint;
+    using AddrArrayLib for AddrArrayLib.Addresses;
+
+    // List of trusted addresses which can mint tokens
+    AddrArrayLib.Addresses _allowanceWL;
+
 
     event TokenControllerMessage(
         string msgType,
-        address indexed from,
-        uint amt,
+        address indexed fromAddress,
+        uint amount,
         string message
     );
 
@@ -42,7 +50,11 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         uint initialSupply,
         uint decimals,
         uint32 maxSupply
-    ) external payable returns (address createdTokenAddress) {
+    ) 
+		external 
+		payable  
+		onlyOwner 
+	returns (address createdTokenAddress) {
         // instantiate the list of keys we'll use for token create
         IHederaTokenService.TokenKey[]
             memory keys = new IHederaTokenService.TokenKey[](1);
@@ -110,7 +122,11 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         uint initialSupply,
         uint decimals,
         uint32 maxSupply
-    ) external payable returns (address createdTokenAddress) {
+    ) 
+		external
+		payable
+		onlyOwner 
+	returns (address createdTokenAddress) {
         // instantiate the list of keys we will use for token create
         IHederaTokenService.TokenKey[]
             memory keys = new IHederaTokenService.TokenKey[](1);
@@ -177,7 +193,11 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         uint initialSupply,
         uint decimals,
         uint32 maxSupply
-    ) external payable returns (address createdTokenAddress) {
+    )
+		external
+		payable
+		onlyOwner
+	returns (address createdTokenAddress) {
         //define the token
         IHederaTokenService.HederaToken memory token;
         token.name = name;
@@ -247,7 +267,6 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         int64[] memory _serials
     )
         external
-        payable
         onlyOwner
         returns (int responseCode, uint64 newTotalSupply)
     {
@@ -270,6 +289,8 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
     }
 
     /// Operation to wipe fungible tokens from caller's account
+	/// This method os open to all as the address foor burning is the msg.sender the call
+	/// can only burn tokens they own
     /// @param token The token address
     /// @param amount The number of tokens to wipe
     /// @return responseCode The response code for the status of the request. SUCCESS is 22.
@@ -302,7 +323,10 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         address token,
         address[] memory accountIds,
         int64[] memory amounts
-    ) external onlyOwner returns (int responseCode) {
+    )
+		external
+		onlyOwner
+	returns (int responseCode) {
         (responseCode) = HederaTokenService.transferTokens(
             token,
             accountIds,
@@ -314,7 +338,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         }
     }
 
-	/// Allows spender to withdraw from your account multiple times, up to the value amount. If this function is called
+    /// Allows spender to withdraw from your account multiple times, up to the value amount. If this function is called
     /// again it overwrites the current allowance with value.
     /// Only Applicable to Fungible Tokens
     /// @param token The hedera token address to approve
@@ -326,49 +350,106 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         address spender,
         uint256 amount
     ) external onlyOwner returns (int responseCode) {
-        (responseCode) = HederaTokenService.approve(
-            token,
+        require(_allowanceWL.exists(spender), "Spender not on WL");
+
+        (responseCode) = HederaTokenService.approve(token, spender, amount);
+
+        emit TokenControllerMessage(
+            "Approval",
             spender,
-            amount
+            amount,
+            "Allowance approved"
         );
 
-		emit TokenControllerMessage("Approval", spender, amount, "Allowance approved");
-
         if (responseCode != HederaResponseCodes.SUCCESS) {
-            revert("transfer batch - failed");
+            revert("allowance approval - failed");
         }
     }
 
-    function checkAllowance(
-        address token,
-        address owner,
-        address spender
-    ) external returns (int responseCode, uint256 amount) {
+    /// Check the allowance for a specific user via an SC call [mirror node better?]
+    /// @param token The Hedera token address to check the allowance of
+    /// @param spender the spender of the tokens
+    /// @return responseCode The response code for the status of the request. SUCCESS is 22.
+    /// @return amount thw number of tokens authorised to spend
+    function checkAllowance(address token, address spender)
+        external
+        returns (int responseCode, uint256 amount)
+    {
         (responseCode, amount) = HederaTokenService.allowance(
             token,
-            owner,
+            address(this),
             spender
         );
 
-		emit TokenControllerMessage("Allowance checked", spender, amount, "checked");
+        emit TokenControllerMessage(
+            "Allowance checked",
+            spender,
+            amount,
+            "checked"
+        );
 
         if (responseCode != HederaResponseCodes.SUCCESS) {
             revert("getAllowance - failed");
         }
     }
 
-    // Transfer token from this contract to the recipient
+    /// Use HTS to transfer FT
+    /// @param token The token to transfer to/from
+    /// @param receiver The receiver of the transaction
+    /// @param amount Non-negative value to send. a negative value will result in a failure.
+    function transferHTS(
+        address token,
+        address receiver,
+        int64 amount
+    )
+		external
+		onlyOwner 
+	returns (int responseCode) {
+        responseCode = HederaTokenService.transferToken(
+            token,
+            address(this),
+            receiver,
+            amount
+        );
+
+		require(amount > 0, "Positive transfers only");
+
+        emit TokenControllerMessage(
+            "Transfer with HTS",
+            receiver,
+            uint256(uint64(amount)),
+            "completed"
+        );
+
+        if (responseCode != HederaResponseCodes.SUCCESS) {
+            revert("transferHTS - failed");
+        }
+    }
+
+    /// Transfer token from this contract to the recipient
+    /// @param token address in EVM format of the token to transfer
+    /// @param recipient address in EVM fomat of the reciever of the token
+    /// @param amount number of tokens to send (in long form adjusted for decimal)
+    /// @return sent a boolean signalling success
     function transfer(
         address token,
         address recipient,
         uint256 amount
-    ) external onlyOwner returns (bool sent) {
+    ) 
+		external
+		onlyOwner 
+	returns (bool sent) {
         sent = IERC20(token).transfer(recipient, amount);
         require(sent, "Failed to transfer Tokens");
 
-		emit TokenControllerMessage("Transfer", recipient, amount, "complete");
+        emit TokenControllerMessage("Transfer", recipient, amount, "complete");
     }
 
+    // Left in for example purposes - will remove for production
+    // Low level call to call hbar from the contract to avoid it getting trapped
+    /// @param receiverAddress address in EVM fomat of the reciever of the token
+    /// @param amount number of tokens to send (in long form adjusted for decimal)
+    /// @return sent a boolean signalling success
     function callHbar(address payable receiverAddress, uint amount)
         external
         onlyOwner
@@ -376,15 +457,95 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
     {
         (sent, ) = receiverAddress.call{value: amount}("");
         require(sent, "Failed to send Hbar");
+        receiverAddress.transfer(amount);
 
-		emit TokenControllerMessage("Hbar Call", receiverAddress, amount, "complete");
+        emit TokenControllerMessage(
+            "Hbar Call",
+            receiverAddress,
+            amount,
+            "complete"
+        );
+    }
+
+    // Transfer hbar oput of the contract - using secure ether transfer pattern
+    // on top of onlyOwner as max gas of 2300 (not adjustable) will limit re-entrrant attacks
+    // also throws error on failure causing contract to auutomatically revert
+    /// @param receiverAddress address in EVM fomat of the reciever of the token
+    /// @param amount number of tokens to send (in long form adjusted for decimal)
+    function transferHbar(address payable receiverAddress, uint amount)
+        external
+        onlyOwner
+    {
+        // throws error on failure
+        receiverAddress.transfer(amount);
+
+        emit TokenControllerMessage(
+            "Hbar Transfer",
+            receiverAddress,
+            amount,
+            "complete"
+        );
+    }
+
+    // Add an address to the allowance WL
+    /// @param newAddress the newss address to add
+    function addAllowanceWhitelist(address newAddress) external onlyOwner {
+        _allowanceWL.pushAddress(newAddress);
+        emit TokenControllerMessage(
+            "ADD WL",
+            newAddress,
+            0,
+            "allowance WL updated"
+        );
+    }
+
+    // Remove an address from the allowance WL
+    /// @param oldAddress the address to remove
+    function removeAllowanceWhitelist(address oldAddress) external onlyOwner {
+        _allowanceWL.removeAddress(oldAddress);
+        emit TokenControllerMessage(
+            "REMOVE WL",
+            oldAddress,
+            0,
+            "allowance WL updated"
+        );
+    }
+
+    /// Check the current White List for Approvals
+    /// @return wl an array of addresses currently enabled for allownace approval
+    function getAllowanceWhitelist()
+        external
+        view
+        returns (address[] memory wl)
+    {
+        return _allowanceWL.getAllAddresses();
+    }
+
+    // Check if the address is in the WL
+    /// @param addressToCheck the address to check in WL
+    /// @return bool if in the WL
+    function isAddressWL(address addressToCheck) external view returns (bool) {
+        return _allowanceWL.exists(addressToCheck);
     }
 
     // allows the contract top recieve HBAR
+    receive() external payable {
+        emit TokenControllerMessage(
+            "Receive",
+            msg.sender,
+            msg.value,
+            "Hbar received"
+        );
+    }
 
-    receive() external payable {}
-
-    fallback() external payable {}
+    fallback() external payable {
+        emit TokenControllerMessage(
+            "Fallback",
+            msg.sender,
+            msg.value,
+            "Hbar received"
+        );
+    }
 }
 
 library Bits {

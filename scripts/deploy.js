@@ -30,7 +30,7 @@ const main = async () => {
 	const contractBytecode = json.bytecode;
 
 	console.log('\n- Deploying contract...');
-	const gasLimit = 800000;
+	const gasLimit = 1200000;
 
 	const [contractId, contractAddress] = await contractDeployFcn(contractBytecode, gasLimit);
 

@@ -89,7 +89,7 @@ const main = async () => {
 			const event = decodeEvent('TokenControllerMessage', logStringHex, logTopics.slice(1));
 
 			// output the from address stored in the event
-			console.log(`Record event: from '${AccountId.fromSolidityAddress(event.from).toString()}' update to '${event.message}'`);
+			console.log(`Record event: from '${AccountId.fromSolidityAddress(event.fromAddress).toString()}' update to '${event.message}'`);
 		});
 
 		console.log('\n -executed tx:', JSON.stringify(createToken, 4));
