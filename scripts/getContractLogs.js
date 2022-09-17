@@ -8,16 +8,36 @@ const fs = require('fs');
 const axios = require('axios');
 const Web3 = require('web3');
 
+const baseUrlForMainnet = 'https://mainnet-public.mirrornode.hedera.com';
+const baseUrlForTestnet = 'http://testnet.mirrornode.hedera.com';
+const env = process.env.ENVIRONMENT ?? null;
+const contractName = process.env.CONTRACT_NAME ?? null;
+const eventName = process.env.EVENT_NAME ?? null;
+
 let abi;
 const web3 = new Web3;
 
-// const delay = ms => new Promise(res => setTimeout(res, ms));
-
 async function main() {
-	// import ABI
-	const json = JSON.parse(fs.readFileSync('./artifacts/contracts/FungibleTokenCreator.sol/FungibleTokenCreator.json', 'utf8'));
-	abi = json.abi;
+	console.log('Using ENIVRONMENT:', env);
 
+	if (env === undefined || env == null) {
+		console.log('Environment required, please specify TEST or MAIN in the .env file');
+		return;
+	}
+
+	if (contractName === undefined || contractName == null) {
+		console.log('Environment required, please specify CONTRACT_NAME for ABI in the .env file');
+		return;
+	}
+
+	if (eventName === undefined || eventName == null) {
+		console.log('Environment required, please specify EVENT_NAME to decode in the .env file');
+		return;
+	}
+
+	// import ABI
+	const json = JSON.parse(fs.readFileSync(`./artifacts/contracts/${contractName}.sol/${contractName}.json`, 'utf8'));
+	abi = json.abi;
 
 	const contractId = ContractId.fromString(process.env.CONTRACT_ID);
 
@@ -33,7 +53,9 @@ async function main() {
 async function getEventsFromMirror(contractId) {
 	console.log('\n -Getting event(s) from mirror nodes');
 
-	const url = `https://testnet.mirrornode.hedera.com/api/v1/contracts/${contractId.toString()}/results/logs?order=asc`;
+	const baseUrl = env.toUpperCase() == 'MAIN' ? baseUrlForMainnet : baseUrlForTestnet;
+
+	const url = `${baseUrl}/api/v1/contracts/${contractId.toString()}/results/logs?order=asc`;
 	console.log(url);
 	axios.get(url)
 		.then(function(response) {
@@ -41,11 +63,19 @@ async function getEventsFromMirror(contractId) {
 			jsonResponse.logs.forEach(log => {
 				// decode the event data
 				if (log.data == '0x') return;
-				const event = decodeEvent('TokenControllerMessage', log.data, log.topics.slice(1));
+				const event = decodeEvent(log.data, log.topics.slice(1));
 
-				console.log('EVENT:\n', JSON.stringify(event, null, 3));
+				// console.log('EVENT:\n', JSON.stringify(event, null, 3));
 
-				console.log(`${event.msgType}: '${AccountId.fromSolidityAddress(event.fromAddress).toString()}' : ${event.amount} : '${event.message}'`);
+				let outputStr = '';
+				for (let f = 0; f < event.__length__; f++) {
+					const field = event[f];
+					let output = field.startsWith('0x') ? AccountId.fromSolidityAddress(field).toString() : field;
+					output = f == 0 ? output : ' : ' + output;
+					outputStr += output;
+				}
+
+				console.log(outputStr);
 			});
 		})
 		.catch(function(err) {
@@ -55,11 +85,10 @@ async function getEventsFromMirror(contractId) {
 
 /**
  * Decodes event contents using the ABI definition of the event
- * @param eventName the name of the event
  * @param log log data as a Hex string
  * @param topics an array of event topics
  */
-function decodeEvent(eventName, log, topics) {
+function decodeEvent(log, topics) {
 	const eventAbi = abi.find(event => (event.name === eventName && event.type === 'event'));
 	const decodedLog = web3.eth.abi.decodeLog(eventAbi.inputs, log, topics);
 	return decodedLog;
