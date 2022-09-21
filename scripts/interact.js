@@ -166,7 +166,6 @@ const main = async () => {
 
 	// transfer hbar from contract using higherleve call
 	await transferHbarFromContract(5);
-
 };
 
 async function bulkTransfer(accountList, amounts) {
@@ -715,15 +714,13 @@ async function getContractBalance(ctrctId) {
 	return [balance, info.balance];
 }
 
-async function contractExecuteFcn(cId, gasLim, fcnName, params, amountHbar = 0) {
-	const contractExecuteTx = new ContractExecuteTransaction()
+async function contractExecuteFcn(cId, gasLim, fcnName, params, amountHbar) {
+	const contractExecuteTx = await new ContractExecuteTransaction()
 		.setContractId(cId)
 		.setGas(gasLim)
-		.setFunction(fcnName, params);
-
-	if (amountHbar > 0)contractExecuteTx.setPayableAmount(amountHbar);
-
-	contractExecuteTx.execute(client);
+		.setFunction(fcnName, params)
+		.setPayableAmount(amountHbar)
+		.execute(client);
 
 	// get the results of the function call;
 	const record = await contractExecuteTx.getRecord(client);
