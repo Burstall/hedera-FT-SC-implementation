@@ -11,8 +11,4 @@ module.exports = {
 			},
 		},
 	},
-	gasReporter: {
-		enabled: true,
-		currency: 'USD',
-	},
 };
