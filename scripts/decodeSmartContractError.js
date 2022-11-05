@@ -20,20 +20,20 @@ function errorSignature(error_message) {
 	return error;
 }
 
-async function getErrorFromMirror(silent) {
+async function getErrorFromMirror(silent, depth = 1) {
 	const error = {
 		data: '',
 		signature: '',
 	};
 
 	// get the results from mirror
-	const url = `https://${mirrorUrl}.mirrornode.hedera.com/api/v1/contracts/${contractId}/results?order=desc&limit=1`;
+	const url = `https://${mirrorUrl}.mirrornode.hedera.com/api/v1/contracts/${contractId}/results?order=desc&limit=${depth}`;
 
 	const response = await axios(url);
 	const jsonResponse = response.data;
 
-	if (jsonResponse.results[0].error_message) {
-		const error_message = jsonResponse.results[0].error_message;
+	if (jsonResponse.results[depth - 1].error_message) {
+		const error_message = jsonResponse.results[depth - 1].error_message;
 		if (error_message) {
 			return errorSignature(error_message);
 		}
@@ -139,13 +139,29 @@ async function main() {
 	console.log('');
 	// get the command line parameters
 	const args = process.argv.slice(2);
-	if (args.length == 2) {
+	if (args.length == 1) {
+		const error = await errorSignature(args[0]);
+		await processError(error, false, 0);
+	}
+	else if (args.length == 2) {
 		mirrorUrl = args[0];
 		contractId = args[1];
 
 		// get the signature and data for the error
 		const error = await getErrorFromMirror(false);
 		await processError(error, false, 0);
+	}
+	else if (args.length == 3) {
+		mirrorUrl = args[0];
+		contractId = args[1];
+
+		// get the signature and data for the error
+		const depth = args[2];
+		for (let d = 1; d <= depth; d++) {
+			console.log('Depth:', d);
+			const error = await getErrorFromMirror(false, d);
+			await processError(error, false, 0);
+		}
 	}
 	else {
 		console.error('invalid command line arguments supplied, please consult README.md');
