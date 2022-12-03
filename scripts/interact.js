@@ -168,6 +168,7 @@ const main = async () => {
 	await transferHbarFromContract(5);
 };
 
+// eslint-disable-next-line no-unused-vars
 async function bulkTransfer(accountList, amounts) {
 	console.log('\n\n- Account balances...\n');
 
@@ -236,6 +237,7 @@ async function bulkTransfer(accountList, amounts) {
  * @param {PrivateKey} authSpenderKey the key to sign with.
  * @param {boolean} failureExpected flag to state if we expect failure on the call
  */
+// eslint-disable-next-line no-unused-vars
 async function testUsingApproval(from, to, amount, authSpender, authSpenderKey, failureExpected = false) {
 	// check balances
 	let [acctTokenBal, accountHbarBal] = await getAccountBalance(to);
@@ -280,6 +282,7 @@ async function testUsingApproval(from, to, amount, authSpender, authSpenderKey, 
 	console.log(from.toString() + ' account balance for token ' + tokenId + ' is: ' + contractTokenBal + ' -> ' + contractHbarBal.toString());
 }
 
+// eslint-disable-next-line no-unused-vars
 async function approveAllowance(spender, amount, failureExpected = false) {
 	try {
 		console.log('\n -Attempting *SET* allowance for ', amount, ' of ', tokenIdSolidityAddr, ' / ', tokenId.toString(), ' on ', spender.toString(), spender.toSolidityAddress());
@@ -309,6 +312,7 @@ async function approveAllowance(spender, amount, failureExpected = false) {
  * Helper method to check the allowance on an account
  * @param {AccountId} spender check allowance for this potential spender
  */
+// eslint-disable-next-line no-unused-vars
 async function checkAllowance(spender, excpectedAmount = null) {
 	try {
 		console.log('\n -Attempting *CHECK* allowance for:', spender.toString(), spender.toSolidityAddress());
@@ -337,6 +341,7 @@ async function checkAllowance(spender, excpectedAmount = null) {
 	}
 }
 
+// eslint-disable-next-line no-unused-vars
 async function addAddressToWL(address) {
 	try {
 		console.log('\n -Attempting to *ADD* to WL:', address.toString(), address.toSolidityAddress());
@@ -355,6 +360,7 @@ async function addAddressToWL(address) {
 	}
 }
 
+// eslint-disable-next-line no-unused-vars
 async function removeAddressFromWL(address) {
 	try {
 		console.log('\n -Attempting to **REMOVE* to WL:', address.toString(), address.toSolidityAddress());
@@ -373,6 +379,7 @@ async function removeAddressFromWL(address) {
 	}
 }
 
+// eslint-disable-next-line no-unused-vars
 async function checkIfWL(address) {
 	try {
 		console.log('\n-isAddressWL Query', address.toString(), address.toSolidityAddress());
@@ -400,6 +407,7 @@ async function checkIfWL(address) {
 	}
 }
 
+// eslint-disable-next-line no-unused-vars
 async function getAllowanceWL() {
 	try {
 		console.log('\n-getAllowanceWhitelist Query');
@@ -436,6 +444,7 @@ async function getAllowanceWL() {
 	}
 }
 
+// eslint-disable-next-line no-unused-vars
 async function transferHbarFromContract(amount) {
 	try {
 		console.log('\n -Attempting to retrieve hbar from contract (transfer)');
@@ -460,6 +469,7 @@ async function transferHbarFromContract(amount) {
 	}
 }
 
+// eslint-disable-next-line no-unused-vars
 async function callHbar(amount) {
 	try {
 		console.log('\n -Attempting to retrieve hbar from contract (call)');
@@ -484,6 +494,7 @@ async function callHbar(amount) {
 	}
 }
 
+// eslint-disable-next-line no-unused-vars
 async function sendHbarToContract(amount) {
 	try {
 		console.log('\n -Attempting to send hbar to contract (Hedera JS SDK)..');
@@ -579,6 +590,7 @@ async function transferFungibleWithHTS(amount) {
 	}
 }
 
+// eslint-disable-next-line no-unused-vars
 async function executeBurnWithWipe(amount) {
 	try {
 		console.log('\n -Attempting Burn (wipe method)..');
@@ -608,6 +620,7 @@ async function executeBurnWithWipe(amount) {
 	}
 }
 
+// eslint-disable-next-line no-unused-vars
 async function mintAdditionalSupply(amount) {
 	try {
 		console.log('\n -Attempting to mint additional supply..');
@@ -637,6 +650,7 @@ async function mintAdditionalSupply(amount) {
 	}
 }
 
+// eslint-disable-next-line no-unused-vars
 async function executeBurnWithSupply(amount) {
 	try {
 		console.log('\n -Attempting Burn (burn at treasury)..');
@@ -795,6 +809,7 @@ function encodeFunctionCall(functionName, parameters) {
 }
 
 // Creates a new account
+// eslint-disable-next-line no-unused-vars
 async function accountCreator(privateKey, initialBalance) {
 	const response = await new AccountCreateTransaction()
 		.setInitialBalance(new Hbar(initialBalance))

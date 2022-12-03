@@ -17,6 +17,8 @@ const fs = require('fs');
 let abi;
 const web3 = new Web3;
 
+const contractName = process.env.CONTRACT_NAME ?? null;
+
 // Get operator from .env file
 const operatorKey = PrivateKey.fromString(process.env.PRIVATE_KEY);
 const operatorId = AccountId.fromString(process.env.ACCOUNT_ID);
@@ -34,7 +36,7 @@ const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 
 const main = async () => {
 	// import ABI
-	const json = JSON.parse(fs.readFileSync('./artifacts/contracts/FungibleTokenCreator.sol/FungibleTokenCreator.json', 'utf8'));
+	const json = JSON.parse(fs.readFileSync(`./artifacts/contracts/${contractName}.sol/${contractName}.json`));
 	abi = json.abi;
 
 	const contractId = ContractId.fromString(process.env.CONTRACT_ID);
