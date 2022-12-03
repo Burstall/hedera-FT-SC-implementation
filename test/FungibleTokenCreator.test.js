@@ -139,7 +139,7 @@ describe('Mint the fungible token', function() {
 		contractFTSupply = 100000;
 		client.setOperator(operatorId, operatorKey);
 		tokenDecimal = 2;
-		const fracFee = new FTFractionalFeeObject(6, 100, operatorId.toSolidityAddress(), true, 2);
+		const fracFee = new FTFractionalFeeObject(6, 100, operatorId.toSolidityAddress(), false, 2);
 		const [result, tokenIdAsSolidityAddress] = await mintFungibleWithFees('TestTokenFractionalFees', 'TTFracF', 'Test Token with Fractional Fees', contractFTSupply, tokenDecimal, 0, 50, [], [fracFee]);
 		console.log('FT with Fractional Fee', TokenId.fromSolidityAddress(tokenIdAsSolidityAddress).toString(), tokenIdAsSolidityAddress);
 		expect(result == 'SUCCESS').to.be.true;
