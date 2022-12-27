@@ -450,6 +450,7 @@ describe('Interaction: ', function() {
 	});
 
 	after('Retrieve any hbar spent', async function() {
+		client.setOperator(operatorId, operatorKey);
 		// get Alice balance
 		const [, aliceHbarBal] = await getAccountBalance(aliceId);
 		// SDK transfer back to operator
