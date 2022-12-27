@@ -458,7 +458,7 @@ describe('Interaction: ', function() {
 		expect(receipt == 'SUCCESS').to.be.true;
 
 		// get bob balance
-		const [, bobHbarBal] = await getAccountBalance(aliceId);
+		const [, bobHbarBal] = await getAccountBalance(bobId);
 		// SDK transfer back to operator
 		receipt = await hbarTransferFcn(bobId, bobPk, operatorId, bobHbarBal.toBigNumber().minus(0.01));
 		console.log('Clean-up -> Retrieve hbar from Bob');
