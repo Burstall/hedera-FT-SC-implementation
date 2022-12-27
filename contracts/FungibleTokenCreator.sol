@@ -209,7 +209,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         token.treasury = address(this);
 
         if (maxSupply > 0) {
-            token.tokenSupplyType = false;
+            token.tokenSupplyType = true;
             token.maxSupply = maxSupply;
         }
 
