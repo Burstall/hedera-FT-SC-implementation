@@ -4,17 +4,19 @@ pragma solidity >=0.8.12 <0.9.0;
 import "./HederaResponseCodes.sol";
 import "./HederaTokenService.sol";
 import "./ExpiryHelper.sol";
+import "./KeyHelper.sol";
 
 // Import Ownable from the OpenZeppelin Contracts library
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // Expiry Helper extends FeeHelper which extends KeyHelper inherits HederaStokeService
 // Ownable from OZ to limit access control
 
-contract FungibleTokenCreator is ExpiryHelper, Ownable {
+contract FungibleTokenCreator is KeyHelper, ExpiryHelper, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     // List of trusted addresses which can mint tokens
@@ -24,14 +26,14 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
     event TokenControllerMessage(
         string msgType,
         address indexed fromAddress,
-        uint amount,
+        int64 amount,
         string message
     );
 
 	// to avoid serialisation related default causing odd behaviour
 	// implementing custom object as a wrapper
 	struct FTFixedFeeObject {
-		uint32 amount;
+		int64 amount;
         address tokenAddress;
         bool useHbarsForPayment;
         bool useCurrentTokenForPayment;
@@ -39,11 +41,11 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
 	}
 
 	struct FTFractionalFeeObject {
-		uint32 numerator;
-		uint32 denominator;
+		int64 numerator;
+		int64 denominator;
 		address feeCollector;
-		uint32 minimumAmount;
-        uint32 maximumAmount;
+		int64 minimumAmount;
+        int64 maximumAmount;
         bool netOfTransfers;
 	}
 
@@ -63,8 +65,8 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         string memory name,
         string memory symbol,
         string memory memo,
-        uint64 initialSupply,
-        uint32 decimals,
+        int64 initialSupply,
+        int32 decimals,
         int64 maxSupply
     ) 
 		external 
@@ -131,8 +133,8 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         string memory name,
         string memory symbol,
         string memory memo,
-        uint64 initialSupply,
-        uint32 decimals,
+        int64 initialSupply,
+        int32 decimals,
         int64 maxSupply
     ) 
 		external
@@ -193,8 +195,8 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         string memory name,
         string memory symbol,
         string memory memo,
-        uint64 initialSupply,
-        uint32 decimals,
+        int64 initialSupply,
+        int32 decimals,
         int64 maxSupply
     )
 		external
@@ -248,8 +250,8 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         string memory name,
         string memory symbol,
         string memory memo,
-        uint64 initialSupply,
-        uint32 decimals,
+        int64 initialSupply,
+        int32 decimals,
         int64 maxSupply,
 		FTFixedFeeObject[] memory fixedFees,
 		FTFractionalFeeObject[] memory fractionalFees
@@ -331,10 +333,10 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
     /// (inclusive of decimal eg 10 more of a decimal 1 token => amount = 100)
     /// @return responseCode result of the operation
     /// @return newTotalSupply new supply post mint
-    function mintAdditionalSupply(address token, uint64 amount)
+    function mintAdditionalSupply(address token, int64 amount)
         external
         onlyOwner
-        returns (int responseCode, uint64 newTotalSupply)
+        returns (int responseCode, int64 newTotalSupply)
     {
         bytes[] memory _metadata;
 
@@ -356,12 +358,12 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
     /// @return newTotalSupply new supply post mint
     function burnFromTreasury(
         address token,
-        uint64 amount,
+        int64 amount,
         int64[] memory _serials
     )
         external
         onlyOwner
-        returns (int responseCode, uint64 newTotalSupply)
+        returns (int responseCode, int64 newTotalSupply)
     {
         (responseCode, newTotalSupply) = HederaTokenService.burnToken(
             token,
@@ -387,7 +389,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
     /// @param token The token address
     /// @param amount The number of tokens to wipe
     /// @return responseCode The response code for the status of the request. SUCCESS is 22.
-    function burn(address token, uint32 amount)
+    function burn(address token, int64 amount)
         external
         returns (int responseCode)
     {
@@ -450,7 +452,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         emit TokenControllerMessage(
             "Approval",
             spender,
-            amount,
+            SafeCast.toInt64(SafeCast.toInt256(amount)),
             "Allowance approved"
         );
 
@@ -477,7 +479,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         emit TokenControllerMessage(
             "Allowance checked",
             spender,
-            amount,
+            SafeCast.toInt64(SafeCast.toInt256(amount)),
             "checked"
         );
 
@@ -510,7 +512,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         emit TokenControllerMessage(
             "Transfer with HTS",
             receiver,
-            uint256(uint64(amount)),
+            amount,
             "completed"
         );
 
@@ -535,7 +537,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         sent = IERC20(token).transfer(recipient, amount);
         require(sent, "Failed to transfer Tokens");
 
-        emit TokenControllerMessage("Transfer", recipient, amount, "complete");
+        emit TokenControllerMessage("Transfer", recipient, SafeCast.toInt64(SafeCast.toInt256(amount)), "complete");
     }
 
     // Left in for example purposes - will remove for production
@@ -555,7 +557,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         emit TokenControllerMessage(
             "Hbar Call",
             receiverAddress,
-            amount,
+            SafeCast.toInt64(SafeCast.toInt256(amount)),
             "complete"
         );
     }
@@ -575,7 +577,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         emit TokenControllerMessage(
             "Hbar Transfer",
             receiverAddress,
-            amount,
+            SafeCast.toInt64(SafeCast.toInt256(amount)),
             "complete"
         );
     }
@@ -626,7 +628,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         emit TokenControllerMessage(
             "Receive",
             msg.sender,
-            msg.value,
+            SafeCast.toInt64(SafeCast.toInt256(msg.value)),
             "Hbar received"
         );
     }
@@ -635,7 +637,7 @@ contract FungibleTokenCreator is ExpiryHelper, Ownable {
         emit TokenControllerMessage(
             "Fallback",
             msg.sender,
-            msg.value,
+            SafeCast.toInt64(SafeCast.toInt256(msg.value)),
             "Hbar received"
         );
     }

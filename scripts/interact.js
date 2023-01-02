@@ -585,7 +585,7 @@ async function executeBurnWithWipe(amount) {
 		const gasLim = 500000;
 		const params = new ContractFunctionParameters()
 			.addAddress(tokenIdSolidityAddr)
-			.addUint32(amount * (10 ** tokenDecimal));
+			.addInt64(amount * (10 ** tokenDecimal));
 		const [burnTxRx, contractOutput] = await contractExecuteFcn(contractId, gasLim, 'burn', params);
 		console.log('Function results', JSON.stringify(contractOutput, null, 3));
 		// console.log('Receipt', JSON.stringify(burnTxRx, 3));
@@ -614,7 +614,7 @@ async function mintAdditionalSupply(amount) {
 		const gasLim = 500000;
 		const params = new ContractFunctionParameters()
 			.addAddress(tokenIdSolidityAddr)
-			.addUint64(amount * (10 ** tokenDecimal));
+			.addInt64(amount * (10 ** tokenDecimal));
 		const [mintSupplyTxRx, contractOutput] = await contractExecuteFcn(contractId, gasLim, 'mintAdditionalSupply', params);
 		console.log('Function results', JSON.stringify(contractOutput, null, 3));
 		// console.log('Receipt', JSON.stringify(burnTxRx, 3));
@@ -643,7 +643,7 @@ async function executeBurnWithSupply(amount) {
 		const gasLim = 500000;
 		const params = new ContractFunctionParameters()
 			.addAddress(tokenIdSolidityAddr)
-			.addUint64(amount * (10 ** tokenDecimal))
+			.addInt64(amount * (10 ** tokenDecimal))
 			// added array here for testing - ideally removed given FT focus.
 			.addInt64Array([1]);
 		const [burnTxRx, contractOutput] = await contractExecuteFcn(contractId, gasLim, 'burnFromTreasury', params);

@@ -67,9 +67,9 @@ const main = async () => {
 					.addString(tokenName)
 					.addString(tokenSymbol)
 					.addString(tokenMemo)
-					.addUint256(tokenInitalSupply)
-					.addUint256(tokenDecimal)
-					.addUint32(tokenMaxSupply));
+					.addInt64(tokenInitalSupply)
+					.addInt32(tokenDecimal)
+					.addInt64(tokenMaxSupply));
 
 		const createTokenTx = await createToken.execute(client);
 

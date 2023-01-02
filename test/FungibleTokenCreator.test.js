@@ -129,7 +129,7 @@ describe('Mint the fungible token', function() {
 		client.setOperator(operatorId, operatorKey);
 		tokenDecimal = 2;
 		const fxdFee = new FTFixedFeeObject(5, new TokenId(0).toSolidityAddress(), false, true, operatorId.toSolidityAddress());
-		const [result, tokenIdAsSolidityAddress] = await mintFungibleWithFees('TestTokenFixedFees', 'TTFF', 'Test Token with Fixed Fees', contractFTSupply, tokenDecimal, 0, 50, [fxdFee], []);
+		const [result, tokenIdAsSolidityAddress] = await mintFungibleWithFees('TestTokenFixedFees', 'TTFF', 'Test Token with Fixed Fees', contractFTSupply, tokenDecimal, 0, 100, [fxdFee], []);
 		console.log('FT with fixed Fee', TokenId.fromSolidityAddress(tokenIdAsSolidityAddress).toString(), tokenIdAsSolidityAddress);
 		expect(result == 'SUCCESS').to.be.true;
 		expect(TokenId.fromSolidityAddress(tokenIdAsSolidityAddress).toString().match(addressRegex).length == 2).to.be.true;
@@ -139,8 +139,9 @@ describe('Mint the fungible token', function() {
 		contractFTSupply = 100000;
 		client.setOperator(operatorId, operatorKey);
 		tokenDecimal = 2;
+		// when creating fees for an FT that will be paid in themselves all fee collectors will need to sign the tx
 		const fracFee = new FTFractionalFeeObject(6, 100, operatorId.toSolidityAddress(), false, 2);
-		const [result, tokenIdAsSolidityAddress] = await mintFungibleWithFees('TestTokenFractionalFees', 'TTFracF', 'Test Token with Fractional Fees', contractFTSupply, tokenDecimal, 0, 50, [], [fracFee]);
+		const [result, tokenIdAsSolidityAddress] = await mintFungibleWithFees('TestTokenFractionalFees', 'TTFracF', 'Test Token with Fractional Fees', contractFTSupply, tokenDecimal, 0, 100, [], [fracFee]);
 		console.log('FT with Fractional Fee', TokenId.fromSolidityAddress(tokenIdAsSolidityAddress).toString(), tokenIdAsSolidityAddress);
 		expect(result == 'SUCCESS').to.be.true;
 		expect(TokenId.fromSolidityAddress(tokenIdAsSolidityAddress).toString().match(addressRegex).length == 2).to.be.true;
@@ -666,8 +667,8 @@ async function mintFungible(tokenName, tokenSymbol, tokenMemo, tokenInitalSupply
 		.addString(tokenName)
 		.addString(tokenSymbol)
 		.addString(tokenMemo)
-		.addUint64(tokenInitalSupply)
-		.addUint32(decimal)
+		.addInt64(tokenInitalSupply)
+		.addInt32(decimal)
 		.addInt64(tokenMaxSupply);
 
 	const [ , , createTokenRecord] = await contractExecuteFcn(contractId, gasLim, 'createFungibleWithSupplyAndBurn', params, payment);
@@ -762,7 +763,7 @@ async function executeBurnWithWipe(amount) {
 	const gasLim = 500000;
 	const params = new ContractFunctionParameters()
 		.addAddress(tokenIdSolidityAddr)
-		.addUint32(amount * (10 ** tokenDecimal));
+		.addInt64(amount * (10 ** tokenDecimal));
 	const [burnTxRx, , ] = await contractExecuteFcn(contractId, gasLim, 'burn', params);
 	return burnTxRx.status.toString();
 }
@@ -771,7 +772,7 @@ async function mintAdditionalSupply(amount) {
 	const gasLim = 500000;
 	const params = new ContractFunctionParameters()
 		.addAddress(tokenIdSolidityAddr)
-		.addUint64(amount * (10 ** tokenDecimal));
+		.addInt64(amount * (10 ** tokenDecimal));
 	const [mintSupplyTxRx, , ] = await contractExecuteFcn(contractId, gasLim, 'mintAdditionalSupply', params);
 	return mintSupplyTxRx.status.toString();
 }
@@ -780,7 +781,7 @@ async function executeBurnWithSupply(amount) {
 	const gasLim = 500000;
 	const params = new ContractFunctionParameters()
 		.addAddress(tokenIdSolidityAddr)
-		.addUint64(amount * (10 ** tokenDecimal))
+		.addInt64(amount * (10 ** tokenDecimal))
 		.addInt64Array([1]);
 	const [burnTxRx, , ] = await contractExecuteFcn(contractId, gasLim, 'burnFromTreasury', params);
 	return burnTxRx.status.toString();

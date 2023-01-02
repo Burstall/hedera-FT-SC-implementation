@@ -11,6 +11,7 @@ require('dotenv').config();
 // Get operator from .env file
 const operatorKey = PrivateKey.fromString(process.env.PRIVATE_KEY);
 const operatorId = AccountId.fromString(process.env.ACCOUNT_ID);
+const contractName = process.env.CONTRACT_NAME ?? null;
 
 const client = Client.forTestnet().setOperator(operatorId, operatorKey);
 
@@ -25,7 +26,8 @@ async function contractDeployFcn(bytecode, gasLim) {
 
 const main = async () => {
 
-	const json = JSON.parse(fs.readFileSync('./artifacts/contracts/FungibleTokenCreator.sol/FungibleTokenCreator.json'));
+	const json = JSON.parse(fs.readFileSync(`./artifacts/contracts/${contractName}.sol/${contractName}.json`));
+
 
 	const contractBytecode = json.bytecode;
 
