@@ -29,8 +29,8 @@ const tokenMaxSupply = Number(process.env.TOKEN_MAXSUPPLY) || 0;
 // memo capped at 100 characters
 const tokenMemo = (process.env.TOKEN_MEMO).slice(0, Math.min(process.env.TOKEN_MEMO.length, 100));
 
-const client = Client.forTestnet().setOperator(operatorId, operatorKey);
-
+let client;
+const env = process.env.ENVIRONMENT ?? null;
 
 const main = async () => {
 	// import ABI
@@ -39,6 +39,24 @@ const main = async () => {
 
 	const contractId = ContractId.fromString(process.env.CONTRACT_ID);
 	const contractAddress = contractId.toSolidityAddress();
+
+	console.log('\n-Using ENIVRONMENT:', env);
+	console.log('\n-Using Operator:', operatorId.toString());
+
+	if (env.toUpperCase() == 'TEST') {
+		client = Client.forTestnet();
+		console.log('minting in *TESTNET*');
+	}
+	else if (env.toUpperCase() == 'MAIN') {
+		client = Client.forMainnet();
+		console.log('minting in *MAINNET*');
+	}
+	else {
+		console.log('ERROR: Must specify either MAIN or TEST as environment in .env file');
+		return;
+	}
+
+	client.setOperator(operatorId, operatorKey);
 
 	console.log(`Using Contract: ${contractId} / ${contractAddress}`);
 
