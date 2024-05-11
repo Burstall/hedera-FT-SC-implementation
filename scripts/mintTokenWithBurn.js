@@ -80,7 +80,7 @@ const main = async () => {
 
 	// Create FT using precompile function
 	try {
-		const fcnName = 'createTokenWithNoKeys';
+		const fcnName = 'createFungibleWithBurn';
 		let createToken = new ContractExecuteTransaction()
 			.setContractId(contractId)
 			.setGas(800000)
@@ -149,7 +149,7 @@ const main = async () => {
 		}
 		const tokenId = TokenId.fromSolidityAddress(tokenIdSolidityAddr);
 
-		console.log(`Token (with no keys!) created with ID: ${tokenId} / ${tokenIdSolidityAddr}\n`);
+		console.log(`Token created with ID: ${tokenId} / ${tokenIdSolidityAddr}\n`);
 
 		const tokenUrl = env == 'MAIN' ? baseUrlForMainnet + '/api/v1/tokens/' + tokenId : baseUrlForTestnet + '/api/v1/tokens/' + tokenId;
 		const hashScanUrl = env == 'MAIN' ? 'https://hashscan.io/#/mainnet/token/' + tokenId : 'https://hashscan.io/#/testnet/token/' + tokenId;

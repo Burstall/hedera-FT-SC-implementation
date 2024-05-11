@@ -55,7 +55,7 @@ async function getEventsFromMirror(contractId) {
 
 	const baseUrl = env.toUpperCase() == 'MAIN' ? baseUrlForMainnet : baseUrlForTestnet;
 
-	const url = `${baseUrl}/api/v1/contracts/${contractId.toString()}/results/logs?order=asc`;
+	const url = `${baseUrl}/api/v1/contracts/${contractId.toString()}/results/logs?order=desc&limit=100`;
 	console.log(url);
 	axios.get(url)
 		.then(function(response) {

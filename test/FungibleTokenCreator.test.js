@@ -124,7 +124,8 @@ describe('Mint the fungible token', function() {
 		expect(tokenId.toString().match(addressRegex).length == 2).to.be.true;
 	});
 
-	it('Owner mints a FT with fixed fees', async function() {
+	it.skip('Owner mints a FT with fixed fees', async function() {
+		// security model change invalidated this use case
 		contractFTSupply = 100000;
 		client.setOperator(operatorId, operatorKey);
 		tokenDecimal = 2;
@@ -135,7 +136,8 @@ describe('Mint the fungible token', function() {
 		expect(TokenId.fromSolidityAddress(tokenIdAsSolidityAddress).toString().match(addressRegex).length == 2).to.be.true;
 	});
 
-	it('Owner mints a FT with Fractional fees', async function() {
+	it.skip('Owner mints a FT with Fractional fees', async function() {
+		// security model change invalidated this use case
 		contractFTSupply = 100000;
 		client.setOperator(operatorId, operatorKey);
 		tokenDecimal = 2;
@@ -292,11 +294,14 @@ describe('Interaction: ', function() {
 		// expect it to fail when used given 0
 		let errorCount = 0;
 		try {
-			await testUsingApproval(contractId, bobId, 5, operatorId, operatorKey);
+			await testUsingApproval(AccountId.fromString(contractId.toString()), bobId, 5, operatorId, operatorKey);
 		}
 		catch (err) {
 			if (err instanceof ReceiptStatusError && (err.status._code == 7 || err.status._code == 292)) {
 				errorCount++;
+			}
+			else {
+				console.log('Test unable to send using allowance if unset', err);
 			}
 		}
 		expect(errorCount).to.be.equal(1);
@@ -313,7 +318,7 @@ describe('Interaction: ', function() {
 
 		contractFTSupply -= amountForBob * (10 ** tokenDecimal);
 
-		const result = await testUsingApproval(contractId, bobId, amountForBob, aliceId, alicePK);
+		const result = await testUsingApproval(AccountId.fromString(contractId.toString()), bobId, amountForBob, aliceId, alicePK);
 		const [acctTokenBal] = await getAccountBalance(bobId);
 
 		expect(result).to.be.equal('SUCCESS');
@@ -330,11 +335,14 @@ describe('Interaction: ', function() {
 		// expect it to fail when used given 0
 		let errorCount = 0;
 		try {
-			await testUsingApproval(contractId, bobId, 5, aliceId, alicePK);
+			await testUsingApproval(AccountId.fromString(contractId.toString()), bobId, 5, aliceId, alicePK);
 		}
 		catch (err) {
 			if (err instanceof ReceiptStatusError && (err.status._code == 7 || err.status._code == 292)) {
 				errorCount++;
+			}
+			else {
+				console.log('Test send with allowance **used up** for Alice', err);
 			}
 		}
 		expect(errorCount).to.be.equal(1);
@@ -351,7 +359,7 @@ describe('Interaction: ', function() {
 		client.setOperator(operatorId, operatorKey);
 
 		const amount = 10;
-		const result = await hbarTransferFcn(operatorId, operatorKey, contractId, amount);
+		const result = await hbarTransferFcn(operatorId, operatorKey, AccountId.fromString(contractId.toString()), amount);
 
 		expect(result).to.be.equal('SUCCESS');
 

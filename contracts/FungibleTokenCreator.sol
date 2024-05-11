@@ -238,6 +238,9 @@ contract FungibleTokenCreator is KeyHelper, ExpiryHelper, Ownable {
         createdTokenAddress = tokenAddress;
     }
 
+	/**
+	* Hedera Security model update invalidated this use case. Left for historical record only.
+
 	// mint an FT with no keys - not adjustable, 1 time mint as clean and transparent as possible
     /// @param name token name
     /// @param symbol token symbol
@@ -327,6 +330,7 @@ contract FungibleTokenCreator is KeyHelper, ExpiryHelper, Ownable {
 
         createdTokenAddress = tokenAddress;
     }
+	*/
 
     /// @param token address in EVM format of token to mint more supply to
     /// @param amount the number of new units to mint
