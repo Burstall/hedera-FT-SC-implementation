@@ -101,6 +101,7 @@ describe('Deployment: ', function() {
 	});
 });
 
+/** */
 describe('Mint the fungible token', function() {
 	it('Check only owner can call to mint', async function() {
 		client.setOperator(aliceId, alicePK);
@@ -115,38 +116,12 @@ describe('Mint the fungible token', function() {
 		expect(errorCount).to.be.equal(1);
 	});
 
-
 	it('Owner mints a FT', async function() {
 		contractFTSupply = 100000;
 		client.setOperator(operatorId, operatorKey);
 		tokenDecimal = 2;
 		await mintFungible('TestToken', 'TT', 'Test Token', contractFTSupply, tokenDecimal, 0, 30);
 		expect(tokenId.toString().match(addressRegex).length == 2).to.be.true;
-	});
-
-	it.skip('Owner mints a FT with fixed fees', async function() {
-		// security model change invalidated this use case
-		contractFTSupply = 100000;
-		client.setOperator(operatorId, operatorKey);
-		tokenDecimal = 2;
-		const fxdFee = new FTFixedFeeObject(5, new TokenId(0).toSolidityAddress(), false, true, operatorId.toSolidityAddress());
-		const [result, tokenIdAsSolidityAddress] = await mintFungibleWithFees('TestTokenFixedFees', 'TTFF', 'Test Token with Fixed Fees', contractFTSupply, tokenDecimal, 0, 100, [fxdFee], []);
-		console.log('FT with fixed Fee', TokenId.fromSolidityAddress(tokenIdAsSolidityAddress).toString(), tokenIdAsSolidityAddress);
-		expect(result == 'SUCCESS').to.be.true;
-		expect(TokenId.fromSolidityAddress(tokenIdAsSolidityAddress).toString().match(addressRegex).length == 2).to.be.true;
-	});
-
-	it.skip('Owner mints a FT with Fractional fees', async function() {
-		// security model change invalidated this use case
-		contractFTSupply = 100000;
-		client.setOperator(operatorId, operatorKey);
-		tokenDecimal = 2;
-		// when creating fees for an FT that will be paid in themselves all fee collectors will need to sign the tx
-		const fracFee = new FTFractionalFeeObject(6, 100, operatorId.toSolidityAddress(), false, 2);
-		const [result, tokenIdAsSolidityAddress] = await mintFungibleWithFees('TestTokenFractionalFees', 'TTFracF', 'Test Token with Fractional Fees', contractFTSupply, tokenDecimal, 0, 100, [], [fracFee]);
-		console.log('FT with Fractional Fee', TokenId.fromSolidityAddress(tokenIdAsSolidityAddress).toString(), tokenIdAsSolidityAddress);
-		expect(result == 'SUCCESS').to.be.true;
-		expect(TokenId.fromSolidityAddress(tokenIdAsSolidityAddress).toString().match(addressRegex).length == 2).to.be.true;
 	});
 
 	it('Ensure the balance of FT is correct', async function() {
@@ -195,49 +170,6 @@ describe('Interaction: ', function() {
 		const [acctTokenBal] = await getAccountBalance(operatorId);
 
 		expect(result).to.be.equal('SUCCESS');
-		expect(acctTokenBal).to.be.equal(operatorAcctFTSupply);
-	});
-
-	it('Execute Burn (via wipe)', async function() {
-		client.setOperator(operatorId, operatorKey);
-
-		const amount = 6;
-		operatorAcctFTSupply -= amount;
-
-		const result = await executeBurnWithWipe(amount);
-		const [acctTokenBal] = await getAccountBalance(operatorId);
-
-		expect(result).to.be.equal('SUCCESS');
-		expect(acctTokenBal).to.be.equal(operatorAcctFTSupply);
-	});
-
-	it('Mint additional supply', async function() {
-		client.setOperator(operatorId, operatorKey);
-
-		const amount = 10;
-		contractFTSupply += amount * (10 ** tokenDecimal);
-
-		const result = await mintAdditionalSupply(amount);
-		const [contractTokenBal] = await getContractBalance();
-
-		expect(result).to.be.equal('SUCCESS');
-		expect(contractTokenBal.toInt()).to.be.equal(contractFTSupply);
-	});
-
-	it('Execute Burn at Treasury with supply', async function() {
-		client.setOperator(operatorId, operatorKey);
-
-		const amount = 5;
-		contractFTSupply -= amount * (10 ** tokenDecimal);
-
-		const result = await executeBurnWithSupply(amount);
-		const [contractTokenBal] = await getContractBalance(contractId);
-
-		expect(result).to.be.equal('SUCCESS');
-		expect(contractTokenBal == contractFTSupply).to.be.true;
-
-		// verify the operator is untouched
-		const [acctTokenBal] = await getAccountBalance(operatorId);
 		expect(acctTokenBal).to.be.equal(operatorAcctFTSupply);
 	});
 
@@ -365,15 +297,6 @@ describe('Interaction: ', function() {
 
 	});
 
-	it('Retrieve hbar with low level call', async function() {
-		client.setOperator(operatorId, operatorKey);
-
-		const amount = 5;
-		const result = await callHbar(amount);
-
-		expect(result).to.be.equal('SUCCESS');
-	});
-
 	it('Retrieve Hbar with transfer', async function() {
 		client.setOperator(operatorId, operatorKey);
 
@@ -418,20 +341,13 @@ describe('Interaction: ', function() {
 			errorCount++;
 		}
 		try {
-			await callHbar(0.1);
-		}
-		catch (err) {
-			errorCount++;
-		}
-		try {
 			await transferHbarFromContract(0.1);
 		}
 		catch (err) {
 			errorCount++;
 		}
 
-		expect(errorCount).to.be.equal(7);
-
+		expect(errorCount).to.be.equal(6);
 	});
 
 	it('Check Alice *CAN* execute non-sensitive calls', async function() {
@@ -446,16 +362,6 @@ describe('Interaction: ', function() {
 
 		const allowance = await checkAllowance(aliceId);
 		expect(allowance).to.be.equal(0);
-	});
-
-	it('Check Bob *CAN* burn his tokens', async function() {
-		client.setOperator(bobId, bobPk);
-
-		const result = await executeBurnWithWipe(amountForBob);
-		const [acctTokenBal] = await getAccountBalance(bobId);
-
-		expect(result).to.be.equal('SUCCESS');
-		expect(acctTokenBal).to.be.equal(0);
 	});
 
 	after('Retrieve any hbar spent', async function() {
@@ -520,26 +426,6 @@ async function contractExecuteFcn(cId, gasLim, fcnName, params, amountHbar) {
 	const record = await contractExecuteTx.getRecord(client);
 	const contractResults = decodeFunctionResult(fcnName, record.contractFunctionResult.bytes);
 	const contractExecuteRx = await contractExecuteTx.getReceipt(client);
-	return [contractExecuteRx, contractResults, record];
-}
-
-async function contractExecuteWithStructArgs(cId, gasLim, fcnName, params, amountHbar, clientToUse = client) {
-	// use web3.eth.abi to encode the struct for sending.
-	// console.log('pre-encode:', JSON.stringify(params, null, 4));
-	const functionCallAsUint8Array = await encodeFunctionCall(fcnName, params);
-
-	const contractExecuteTx = await new ContractExecuteTransaction()
-		.setContractId(cId)
-		.setGas(gasLim)
-		.setFunctionParameters(functionCallAsUint8Array)
-		.setPayableAmount(amountHbar)
-		.freezeWith(clientToUse)
-		.execute(clientToUse);
-
-	// get the results of the function call;
-	const record = await contractExecuteTx.getRecord(clientToUse);
-	const contractResults = decodeFunctionResult(fcnName, record.contractFunctionResult.bytes);
-	const contractExecuteRx = await contractExecuteTx.getReceipt(clientToUse);
 	return [contractExecuteRx, contractResults, record];
 }
 
@@ -679,32 +565,12 @@ async function mintFungible(tokenName, tokenSymbol, tokenMemo, tokenInitalSupply
 		.addInt32(decimal)
 		.addInt64(tokenMaxSupply);
 
-	const [ , , createTokenRecord] = await contractExecuteFcn(contractId, gasLim, 'createFungibleWithSupplyAndBurn', params, payment);
+	const [ , , createTokenRecord] = await contractExecuteFcn(contractId, gasLim, 'createTokenWithNoKeys', params, payment);
 
 	tokenIdSolidityAddr = createTokenRecord.contractFunctionResult.getAddress(0);
 	tokenId = TokenId.fromSolidityAddress(tokenIdSolidityAddr);
 }
 
-/**
- * Helper function to encpapsualte minting an FT with fees
- * @param {string} tokenName
- * @param {string} tokenSymbol
- * @param {string} tokenMemo
- * @param {number} tokenInitalSupply
- * @param {number} tokenDecimal
- * @param {number} tokenMaxSupply
- * @param {number} payment
- * @param {FTFixedFeeObject[]} fxdFees
- * @param {FTFractionalFeeObject[]} fracFees
- */
-async function mintFungibleWithFees(tokenName, tokenSymbol, tokenMemo, tokenInitalSupply, decimal, tokenMaxSupply, payment, fxdFees, fracFees) {
-	const gasLim = 800000;
-
-	const params = [tokenName, tokenSymbol, tokenMemo, tokenInitalSupply, decimal, tokenMaxSupply, fxdFees, fracFees];
-
-	const [mintRx, mintResults] = await contractExecuteWithStructArgs(contractId, gasLim, 'createTokenWithCustomFees', params, payment);
-	return [mintRx.status.toString(), mintResults['createdTokenAddress']];
-}
 
 /**
  * Helper method for token association
@@ -767,15 +633,6 @@ async function transferFungibleWithHTS(receiver, amount) {
 	return tokenTransferStatus.toString();
 }
 
-async function executeBurnWithWipe(amount) {
-	const gasLim = 500000;
-	const params = new ContractFunctionParameters()
-		.addAddress(tokenIdSolidityAddr)
-		.addInt64(amount * (10 ** tokenDecimal));
-	const [burnTxRx, , ] = await contractExecuteFcn(contractId, gasLim, 'burn', params);
-	return burnTxRx.status.toString();
-}
-
 async function mintAdditionalSupply(amount) {
 	const gasLim = 500000;
 	const params = new ContractFunctionParameters()
@@ -821,15 +678,6 @@ async function transferHbarFromContract(amount, units = HbarUnit.Hbar) {
 		.addAddress(operatorId.toSolidityAddress())
 		.addUint256(new Hbar(amount, units).toTinybars());
 	const [callHbarRx, , ] = await contractExecuteFcn(contractId, gasLim, 'transferHbar', params);
-	return callHbarRx.status.toString();
-}
-
-async function callHbar(amount) {
-	const gasLim = 400000;
-	const params = new ContractFunctionParameters()
-		.addAddress(operatorId.toSolidityAddress())
-		.addUint256(new Hbar(amount, HbarUnit.Hbar).toBigNumber());
-	const [callHbarRx, , ] = await contractExecuteFcn(contractId, gasLim, 'callHbar', params);
 	return callHbarRx.status.toString();
 }
 
@@ -907,43 +755,4 @@ async function removeAddressFromWL(address) {
 		.addAddress(address.toSolidityAddress());
 	const [callHbarRx, , ] = await contractExecuteFcn(contractId, gasLim, 'removeAllowanceWhitelist', params);
 	return callHbarRx.status.toString();
-}
-
-class FTFixedFeeObject {
-	/**
-	 * Fixed fee objects for FTs if applicable. note can onlyy set *ONE* of
-	 * token / useHbar / use own token per fee object
-	 * @param {number} amount
-	 * @param {string} tokenAddress - the token ID (solidity address!) to use for payment
-	 * @param {boolean} useHbarsForPayment - true if to use hbar for payment instead
-	 * @param {boolean} useCurrentTokenForPayment - true if to denominate the payment in the token itself
-	 * @param {string} feeCollector - the account to send the royalty to
-	 */
-	constructor(amount, tokenAddress, useHbarsForPayment, useCurrentTokenForPayment, feeCollector) {
-		this.amount = amount;
-		this.tokenAddress = tokenAddress;
-		this.useHbar = useHbarsForPayment;
-		this.useCurrentTokenForPayment = useCurrentTokenForPayment;
-		this.feeCollector = feeCollector;
-	}
-}
-
-class FTFractionalFeeObject {
-	/**
-	 *
-	 * @param {number} numerator
-	 * @param {number} denominator
-	 * @param {string} feeCollector address in solidity format
-	 * @param {boolean} netOfTransfers take the fee net of the amount transfered
-	 * @param {number} minimumAmount - min fee to take
-	 * @param {number} maximumAmount - max fee to take, 0 implies uncapped.
-	 */
-	constructor(numerator, denominator, feeCollector, netOfTransfers, minimumAmount, maximumAmount = 0) {
-		this.numerator = numerator;
-		this.denominator = denominator;
-		this.minimumAmount = minimumAmount;
-		this.maximumAmount = maximumAmount;
-		this.netOfTransfers = netOfTransfers;
-		this.feeCollector = feeCollector;
-	}
 }
