@@ -101,9 +101,9 @@ const main = async () => {
 					.addString(tokenName)
 					.addString(tokenSymbol)
 					.addString(tokenMemo)
-					.addUint64(tokenInitalSupply)
-					.addUint32(tokenDecimal)
-					.addUint64(tokenMaxSupply));
+					.addInt64(tokenInitalSupply)
+					.addInt32(tokenDecimal)
+					.addInt64(tokenMaxSupply));
 
 		if (multiSig) {
 			const multiSigAccount = AccountId.fromString(process.env.MULTI_SIG_WALLET);
